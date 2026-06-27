@@ -1,0 +1,85 @@
+Aurora Studio
+=============
+Version: 0.1.0
+Build type: Windows portable folder (early local desktop build)
+
+This is an early development build for local testing only.
+It is not a production release.
+
+---
+
+How to Run
+----------
+
+Double-click run_desktop.bat or run from this folder:
+
+    run_desktop.bat
+
+This opens the Aurora Studio desktop application.
+
+A display is required to open the window.
+
+---
+
+How to Smoke Test (Headless)
+-----------------------------
+
+To verify the application starts correctly without opening a window:
+
+    smoke_desktop.bat
+
+Expected: exits 0 and prints JSON. No window opens.
+
+---
+
+Folder Layout
+-------------
+
+    app\                  Application files (do not modify)
+      AuroraStudio\       PyInstaller one-folder bundle
+        AuroraStudio.exe  Main executable
+        _internal\        Python runtime (do not modify)
+    data\                 Reserved for application data (writable)
+    logs\                 Reserved for application logs (writable)
+    samples\              Reserved for sample projects (currently empty)
+    tmp\                  Reserved for temporary files (writable)
+    run_desktop.bat       Launch desktop shell
+    smoke_desktop.bat     Headless smoke test
+    README.txt            This file
+    NOTICE.txt            Build notices
+
+---
+
+Where to Store Projects
+-----------------------
+
+User-created project folders should be stored OUTSIDE the app\ folder.
+
+Recommended: Documents\Aurora\MyProject\
+
+The data\ folder in this bundle is reserved for application-managed data only.
+
+Do not store personal project files inside app\ or _internal\.
+Updates to the application may overwrite these folders.
+
+---
+
+Current Limitations
+-------------------
+
+- No database is included. All state is in-memory per session.
+- No provider integration is included. No AI model calls are made.
+- No plugin execution is enabled. Plugin metadata only.
+- No installer is included. This is a portable folder only.
+- No auto-update is implemented.
+- No code signing is applied. Windows SmartScreen may warn on first launch.
+  Click "More info" then "Run anyway" to proceed.
+- This is not a production release.
+
+---
+
+Support
+-------
+
+This is a development smoke build of Aurora Studio.
+For source code and development instructions, see the aurora-studio repository.

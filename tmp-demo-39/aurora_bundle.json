@@ -1,0 +1,51 @@
+{
+  "schema_version": "0.1.0",
+  "project_metadata": {
+    "project_id": "project-949fc8a883f843a19fe36b61b5a69bb2",
+    "title": "Demo Project",
+    "version": "0.1.0",
+    "created_at": "2026-06-27T09:23:29.818179+00:00",
+    "modified_at": "2026-06-27T09:23:29.818179+00:00"
+  },
+  "workspace_state": {
+    "active_project_id": "project-949fc8a883f843a19fe36b61b5a69bb2",
+    "active_scene_id": "scene-fd1d586334624ed5833d95e40cb2d238",
+    "active_shot_id": "shot-7e86942b9bda4fda81e523d1a5f74108",
+    "active_timeline_id": null,
+    "selected_ref": null,
+    "mode": "default"
+  },
+  "scenes": [
+    {
+      "scene_id": "scene-fd1d586334624ed5833d95e40cb2d238",
+      "project_id": "project-949fc8a883f843a19fe36b61b5a69bb2",
+      "title": "Opening Scene",
+      "purpose": "",
+      "state": "draft",
+      "created_at": "2026-06-27T09:23:29.822167+00:00",
+      "modified_at": "2026-06-27T09:23:29.822167+00:00",
+      "archived_at": null
+    }
+  ],
+  "shots": [
+    {
+      "shot_id": "shot-7e86942b9bda4fda81e523d1a5f74108",
+      "scene_id": "scene-fd1d586334624ed5833d95e40cb2d238",
+      "title": "Opening Shot",
+      "purpose": "",
+      "order_index": 0,
+      "state": "draft",
+      "created_at": "2026-06-27T09:23:29.822245+00:00",
+      "modified_at": "2026-06-27T09:23:29.822245+00:00",
+      "archived_at": null
+    }
+  ],
+  "timelines": [],
+  "assets": [],
+  "characters": [],
+  "afl_reports": [],
+  "export_artifacts": [],
+  "plugins": [],
+  "created_at": "2026-06-27T09:23:29.822315+00:00",
+  "modified_at": "2026-06-27T09:23:29.822766+00:00"
+}

@@ -1,0 +1,69 @@
+Aurora Studio - Portable Build Notice
+======================================
+Version: 0.1.0
+Build type: Windows portable folder
+
+---
+
+This is an early local desktop build of Aurora Studio for development and
+smoke testing purposes. It is not a production release.
+
+---
+
+No Provider Keys Bundled
+------------------------
+
+This build does not contain any provider API keys, credentials, or tokens.
+No OpenAI, Anthropic, RunwayML, ElevenLabs, or other provider credentials
+are included in this bundle.
+
+The application makes no network calls or AI model requests.
+
+---
+
+No Plugin Execution Enabled
+----------------------------
+
+This build does not execute plugin code.
+Plugin metadata may be registered and displayed, but no plugin modules
+are loaded or executed at runtime.
+
+---
+
+No Database Bundled
+-------------------
+
+This build does not include a database engine.
+All application state is held in memory during the session.
+State may be saved and loaded using bundle JSON files selected by the user.
+
+---
+
+No Warranty
+-----------
+
+This is a smoke build provided for local testing only.
+It is not suitable for production use.
+No warranty is provided.
+
+---
+
+Third-Party Components
+----------------------
+
+This portable build includes the CPython runtime and Python standard library,
+distributed under the Python Software Foundation License.
+See: https://docs.python.org/3/license.html
+
+This build uses tkinter, which includes the Tcl/Tk library.
+Tcl/Tk is distributed under the Tcl license.
+See: https://www.tcl.tk/software/tcltk/license.html
+
+PyInstaller was used to produce this portable build.
+PyInstaller is distributed under the GPL license with a special exception
+allowing bundled applications to be distributed under their own license.
+See: https://pyinstaller.org/en/stable/license.html
+
+---
+
+Aurora Studio source code is developed by Aurora Labs.
