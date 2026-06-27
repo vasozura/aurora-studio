@@ -35,6 +35,24 @@ def _err(message: str, code: int = 2) -> None:
 
 
 # ---------------------------------------------------------------------------
+# Internal helpers
+# ---------------------------------------------------------------------------
+
+def _bundle_counts(bundle) -> dict:
+    """Return collection count dict from a ProjectBundle."""
+    return {
+        "scene_count": len(bundle.scenes),
+        "shot_count": len(bundle.shots),
+        "timeline_count": len(bundle.timelines),
+        "asset_count": len(bundle.assets),
+        "character_count": len(bundle.characters),
+        "afl_report_count": len(bundle.afl_reports),
+        "export_artifact_count": len(bundle.export_artifacts),
+        "plugin_count": len(bundle.plugins),
+    }
+
+
+# ---------------------------------------------------------------------------
 # Command handlers
 # ---------------------------------------------------------------------------
 
@@ -66,16 +84,44 @@ def _cmd_create_demo(args: argparse.Namespace) -> None:
 def _cmd_inspect_bundle(args: argparse.Namespace) -> None:
     svc = ApplicationService()
     bundle = svc.load_bundle(args.path)
+    _out({"schema_version": bundle.schema_version, **_bundle_counts(bundle)})
+
+
+def _cmd_validate_bundle(args: argparse.Namespace) -> None:
+    """Load bundle without rehydrating; report validity and counts."""
+    svc = ApplicationService()
+    bundle = svc.load_bundle(args.path)  # raises ValidationError on invalid
     _out({
+        "ok": True,
+        "valid": True,
         "schema_version": bundle.schema_version,
-        "scene_count": len(bundle.scenes),
-        "shot_count": len(bundle.shots),
-        "timeline_count": len(bundle.timelines),
-        "asset_count": len(bundle.assets),
-        "character_count": len(bundle.characters),
-        "afl_report_count": len(bundle.afl_reports),
-        "export_artifact_count": len(bundle.export_artifacts),
-        "plugin_count": len(bundle.plugins),
+        **_bundle_counts(bundle),
+    })
+
+
+def _cmd_rehydrate_bundle(args: argparse.Namespace) -> None:
+    """Load and rehydrate bundle into a fresh ApplicationService; report counts."""
+    svc = ApplicationService()
+    result = svc.load_and_rehydrate_bundle(args.path)
+    bundle = result["bundle"]
+    summary = result["summary"]
+    state = svc.get_workspace_state()
+    _out({
+        "ok": True,
+        "schema_version": bundle.schema_version,
+        "rehydrated": True,
+        "workspace_restored": summary["workspace_restored"],
+        "scenes": summary["scenes"],
+        "shots": summary["shots"],
+        "timelines": summary["timelines"],
+        "assets": summary["assets"],
+        "characters": summary["characters"],
+        "afl_reports": summary["afl_reports"],
+        "export_artifacts": summary["export_artifacts"],
+        "plugins": summary["plugins"],
+        "active_project_id": state.active_project_id,
+        "active_scene_id": state.active_scene_id,
+        "active_shot_id": state.active_shot_id,
     })
 
 
@@ -123,6 +169,20 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     ib.add_argument("--path", required=True, help="Bundle file or project directory.")
 
+    # validate-bundle
+    vb = sub.add_parser(
+        "validate-bundle",
+        help="Validate a local bundle and print counts. Does not rehydrate managers.",
+    )
+    vb.add_argument("--path", required=True, help="Bundle file or project directory.")
+
+    # rehydrate-bundle
+    rb = sub.add_parser(
+        "rehydrate-bundle",
+        help="Load and rehydrate a bundle into fresh service; print restored counts.",
+    )
+    rb.add_argument("--path", required=True, help="Bundle file or project directory.")
+
     return parser
 
 
@@ -135,6 +195,8 @@ _HANDLERS = {
     "create-project": _cmd_create_project,
     "create-demo": _cmd_create_demo,
     "inspect-bundle": _cmd_inspect_bundle,
+    "validate-bundle": _cmd_validate_bundle,
+    "rehydrate-bundle": _cmd_rehydrate_bundle,
 }
 
 
