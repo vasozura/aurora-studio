@@ -24,10 +24,10 @@ class SceneRef:
 
 @dataclass(frozen=True)
 class SceneRecord:
-    """Minimal Scene record contract.
+    """Scene record contract (v0.2: expanded with detail fields).
 
-    This is the first controlled implementation contract for Scene Manager.
-    It is not a final Scene schema.
+    Backward compatible with v0.1 bundles: all new fields are optional
+    with empty-string defaults and are handled by from_dict() via .get().
     """
 
     scene_id: str
@@ -38,6 +38,14 @@ class SceneRecord:
     created_at: str = ""
     modified_at: str = ""
     archived_at: str | None = None
+    # v0.2 detail fields — all optional, default ""
+    description: str = ""
+    location: str = ""
+    time_of_day: str = ""
+    mood: str = ""
+    conflict: str = ""
+    narrative_beat: str = ""
+    notes: str = ""
 
     def to_ref(self) -> SceneRef:
         """Return lightweight Scene reference."""
@@ -56,7 +64,11 @@ class SceneRecord:
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "SceneRecord":
-        """Create a Scene record from JSON-like data."""
+        """Create a Scene record from JSON-like data.
+
+        Required: scene_id, project_id, title, state, created_at, modified_at.
+        v0.2 detail fields are optional (default "") for backward compatibility.
+        """
 
         required = ("scene_id", "project_id", "title", "state", "created_at", "modified_at")
         missing = [key for key in required if key not in data]
@@ -72,4 +84,11 @@ class SceneRecord:
             created_at=str(data["created_at"]),
             modified_at=str(data["modified_at"]),
             archived_at=None if data.get("archived_at") is None else str(data["archived_at"]),
+            description=str(data.get("description", "")),
+            location=str(data.get("location", "")),
+            time_of_day=str(data.get("time_of_day", "")),
+            mood=str(data.get("mood", "")),
+            conflict=str(data.get("conflict", "")),
+            narrative_beat=str(data.get("narrative_beat", "")),
+            notes=str(data.get("notes", "")),
         )

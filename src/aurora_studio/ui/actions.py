@@ -548,3 +548,196 @@ class UISession:
             })
         except Exception as exc:
             return _fail(f"Unexpected error: {exc}")
+
+    # ------------------------------------------------------------------
+    # Scene Detail actions (TASK-000051)
+    # ------------------------------------------------------------------
+
+    def get_scene_detail(self, scene_id: str) -> UIActionResult:
+        """Return full SceneDetailViewModel for the given scene_id."""
+        from aurora_studio.ui.view_models import SceneDetailViewModel
+        try:
+            record = self.service.scene_manager.get_scene(scene_id)
+            return _ok(SceneDetailViewModel.from_record(record).to_dict())
+        except ValidationError as exc:
+            return _fail(str(exc))
+        except Exception as exc:
+            return _fail(f"Unexpected error: {exc}")
+
+    def update_scene_detail(self, scene_id: str, fields: dict) -> UIActionResult:
+        """Update scene detail fields. Validates and delegates to SceneManager."""
+        if not isinstance(fields, dict):
+            return _fail("fields must be a dict.")
+        if not scene_id or not scene_id.strip():
+            return _fail("scene_id must not be empty.")
+        from aurora_studio.ui.view_models import SceneDetailViewModel
+        try:
+            record = self.service.scene_manager.update_scene_details(scene_id, **fields)
+            return _ok(SceneDetailViewModel.from_record(record).to_dict())
+        except ValidationError as exc:
+            return _fail(str(exc))
+        except Exception as exc:
+            return _fail(f"Unexpected error: {exc}")
+
+    def validate_scene_detail_fields(self, fields: dict) -> UIActionResult:
+        """Validate scene detail fields without saving.
+
+        Returns ok=True with a validation summary, or ok=False with an error.
+        """
+        if not isinstance(fields, dict):
+            return _fail("fields must be a dict.")
+        if "title" in fields:
+            title = fields["title"]
+            if title is None or str(title).strip() == "":
+                return _fail("title must not be empty.")
+        return _ok({"valid": True, "field_count": len(fields)})
+
+    # ------------------------------------------------------------------
+    # Shot Detail actions (TASK-000052)
+    # ------------------------------------------------------------------
+
+    def get_shot_detail(self, shot_id: str) -> UIActionResult:
+        """Return full ShotDetailViewModel for the given shot_id."""
+        from aurora_studio.ui.view_models import ShotDetailViewModel
+        try:
+            record = self.service.shot_manager.get_shot(shot_id)
+            return _ok(ShotDetailViewModel.from_record(record).to_dict())
+        except ValidationError as exc:
+            return _fail(str(exc))
+        except Exception as exc:
+            return _fail(f"Unexpected error: {exc}")
+
+    def update_shot_detail(self, shot_id: str, fields: dict) -> UIActionResult:
+        """Update shot detail fields. Validates and delegates to ShotManager."""
+        if not isinstance(fields, dict):
+            return _fail("fields must be a dict.")
+        if not shot_id or not shot_id.strip():
+            return _fail("shot_id must not be empty.")
+        from aurora_studio.ui.view_models import ShotDetailViewModel
+        try:
+            record = self.service.shot_manager.update_shot_details(shot_id, **fields)
+            return _ok(ShotDetailViewModel.from_record(record).to_dict())
+        except ValidationError as exc:
+            return _fail(str(exc))
+        except Exception as exc:
+            return _fail(f"Unexpected error: {exc}")
+
+    def validate_shot_detail_fields(self, fields: dict) -> UIActionResult:
+        """Validate shot detail fields without saving."""
+        if not isinstance(fields, dict):
+            return _fail("fields must be a dict.")
+        if "title" in fields:
+            title = fields["title"]
+            if title is None or str(title).strip() == "":
+                return _fail("title must not be empty.")
+        duration = fields.get("duration_seconds")
+        if duration is not None:
+            try:
+                d = float(duration)
+            except (TypeError, ValueError):
+                return _fail("duration_seconds must be a number.")
+            if d < 0:
+                return _fail("duration_seconds must not be negative.")
+        return _ok({"valid": True, "field_count": len(fields)})
+
+    # ------------------------------------------------------------------
+    # Timeline extended actions (TASK-000054/055)
+    # ------------------------------------------------------------------
+
+    def move_timeline_item_up(self, timeline_id: str, item_id: str) -> UIActionResult:
+        """Move timeline item up (lower order_index)."""
+        try:
+            record = self.service.timeline_manager.move_item_up(timeline_id, item_id)
+            return _ok({"timeline_id": timeline_id, "item_count": len(record.items)})
+        except ValidationError as exc:
+            return _fail(str(exc))
+        except Exception as exc:
+            return _fail(f"Unexpected error: {exc}")
+
+    def move_timeline_item_down(self, timeline_id: str, item_id: str) -> UIActionResult:
+        """Move timeline item down (higher order_index)."""
+        try:
+            record = self.service.timeline_manager.move_item_down(timeline_id, item_id)
+            return _ok({"timeline_id": timeline_id, "item_count": len(record.items)})
+        except ValidationError as exc:
+            return _fail(str(exc))
+        except Exception as exc:
+            return _fail(f"Unexpected error: {exc}")
+
+    def list_timeline_items(self, timeline_id: str) -> UIActionResult:
+        """Return sorted list of timeline items with timeline_id exposed."""
+        try:
+            items = self.service.timeline_manager.list_items(timeline_id)
+            return _ok({
+                "timeline_id": timeline_id,
+                "items": [
+                    {
+                        "item_id": it.item_id,
+                        "timeline_id": timeline_id,
+                        "item_type": it.item_type,
+                        "target_id": it.target_id,
+                        "order_index": it.order_index,
+                    }
+                    for it in items
+                ]
+            })
+        except ValidationError as exc:
+            return _fail(str(exc))
+        except Exception as exc:
+            return _fail(f"Unexpected error: {exc}")
+
+    def add_scene_to_timeline(self, timeline_id: str, scene_id: str) -> UIActionResult:
+        """Add selected scene to timeline as a scene item."""
+        if not timeline_id or not timeline_id.strip():
+            return _fail("No timeline selected.")
+        if not scene_id or not scene_id.strip():
+            return _fail("No scene selected.")
+        try:
+            record = self.service.timeline_manager.add_item(
+                timeline_id, item_type="scene", target_id=scene_id
+            )
+            return _ok({"timeline_id": timeline_id, "item_count": len(record.items)})
+        except ValidationError as exc:
+            return _fail(str(exc))
+        except Exception as exc:
+            return _fail(f"Unexpected error: {exc}")
+
+    def add_shot_to_timeline(self, timeline_id: str, shot_id: str) -> UIActionResult:
+        """Add selected shot to timeline as a shot item."""
+        if not timeline_id or not timeline_id.strip():
+            return _fail("No timeline selected.")
+        if not shot_id or not shot_id.strip():
+            return _fail("No shot selected.")
+        try:
+            record = self.service.timeline_manager.add_item(
+                timeline_id, item_type="shot", target_id=shot_id
+            )
+            return _ok({"timeline_id": timeline_id, "item_count": len(record.items)})
+        except ValidationError as exc:
+            return _fail(str(exc))
+        except Exception as exc:
+            return _fail(f"Unexpected error: {exc}")
+
+    def get_timeline_summary(self, timeline_id: str) -> UIActionResult:
+        """Return timeline summary including duration and counts."""
+        from aurora_studio.ui.view_models import TimelineSummaryViewModel
+        try:
+            summary = self.service.timeline_manager.get_timeline_summary(
+                timeline_id, shot_manager=self.service.shot_manager
+            )
+            vm = TimelineSummaryViewModel.from_summary(summary)
+            return _ok(vm.to_dict())
+        except ValidationError as exc:
+            return _fail(str(exc))
+        except Exception as exc:
+            return _fail(f"Unexpected error: {exc}")
+
+    def normalize_timeline_order(self, timeline_id: str) -> UIActionResult:
+        """Normalize timeline item order indexes to be contiguous."""
+        try:
+            record = self.service.timeline_manager.normalize_timeline_order(timeline_id)
+            return _ok({"timeline_id": timeline_id, "item_count": len(record.items)})
+        except ValidationError as exc:
+            return _fail(str(exc))
+        except Exception as exc:
+            return _fail(f"Unexpected error: {exc}")

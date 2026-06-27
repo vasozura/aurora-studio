@@ -25,10 +25,10 @@ class ShotRef:
 
 @dataclass(frozen=True)
 class ShotRecord:
-    """Minimal Shot record contract.
+    """Shot record contract (v0.2: expanded with cinematic detail fields).
 
-    This is the first controlled implementation contract for Shot Manager.
-    It is not a final Shot schema.
+    Backward compatible with v0.1 bundles: all new fields are optional
+    with safe defaults handled by from_dict() via .get().
     """
 
     shot_id: str
@@ -40,6 +40,18 @@ class ShotRecord:
     created_at: str = ""
     modified_at: str = ""
     archived_at: str | None = None
+    # v0.2 detail fields — all optional
+    project_id: str = ""
+    description: str = ""
+    shot_type: str = ""
+    camera_angle: str = ""
+    camera_movement: str = ""
+    framing: str = ""
+    lens: str = ""
+    duration_seconds: float = 0.0
+    emotion_target: str = ""
+    visual_focus: str = ""
+    notes: str = ""
 
     def to_ref(self) -> ShotRef:
         """Return lightweight Shot reference."""
@@ -58,7 +70,11 @@ class ShotRecord:
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "ShotRecord":
-        """Create a Shot record from JSON-like data."""
+        """Create a Shot record from JSON-like data.
+
+        Required: shot_id, scene_id, title, order_index, state, created_at, modified_at.
+        v0.2 detail fields are optional (safe defaults) for backward compatibility.
+        """
 
         required = (
             "shot_id",
@@ -73,6 +89,12 @@ class ShotRecord:
         if missing:
             raise ValueError(f"Shot record missing required keys: {', '.join(missing)}")
 
+        raw_duration = data.get("duration_seconds", 0)
+        try:
+            duration = float(raw_duration)
+        except (TypeError, ValueError):
+            duration = 0.0
+
         return cls(
             shot_id=str(data["shot_id"]),
             scene_id=str(data["scene_id"]),
@@ -83,4 +105,15 @@ class ShotRecord:
             created_at=str(data["created_at"]),
             modified_at=str(data["modified_at"]),
             archived_at=None if data.get("archived_at") is None else str(data["archived_at"]),
+            project_id=str(data.get("project_id", "")),
+            description=str(data.get("description", "")),
+            shot_type=str(data.get("shot_type", "")),
+            camera_angle=str(data.get("camera_angle", "")),
+            camera_movement=str(data.get("camera_movement", "")),
+            framing=str(data.get("framing", "")),
+            lens=str(data.get("lens", "")),
+            duration_seconds=duration,
+            emotion_target=str(data.get("emotion_target", "")),
+            visual_focus=str(data.get("visual_focus", "")),
+            notes=str(data.get("notes", "")),
         )

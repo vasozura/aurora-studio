@@ -1,4 +1,4 @@
-"""Scene Manager first minimal implementation."""
+"""Scene Manager implementation (v0.2: update_scene_details added)."""
 
 from __future__ import annotations
 
@@ -12,22 +12,18 @@ from aurora_studio.core.errors import ValidationError
 from aurora_studio.core.ids import new_id
 from aurora_studio.core.readiness import Readiness
 
+_DETAIL_FIELDS = frozenset({
+    "description", "location", "time_of_day", "mood",
+    "conflict", "narrative_beat", "notes",
+})
+
 
 class SceneManager:
     """Minimal Scene Manager implementation.
 
-    This class manages only in-memory Scene records.
-
-    It does not implement:
-    - Shot creation
-    - Timeline placement
-    - Character Presence
-    - AFL validation
-    - Prompt export
-    - Database persistence
-    - Provider integration
-    - Plugin execution
-    - GUI behavior
+    It does not implement: Shot creation, Timeline placement, Character Presence,
+    AFL validation, Prompt export, Database persistence, Provider integration,
+    Plugin execution, GUI behavior.
     """
 
     module_name = "Scene Manager"
@@ -37,13 +33,9 @@ class SceneManager:
         self._scenes: dict[str, SceneRecord] = {}
 
     def get_readiness(self) -> Readiness:
-        """Return module readiness."""
-
         return self.readiness
 
     def describe(self) -> str:
-        """Return a short implementation description."""
-
         return (
             "Scene Manager supports minimal in-memory Scene records "
             "and remains not ready for full product implementation."
@@ -76,7 +68,7 @@ class SceneManager:
             return list(self._scenes.values())
 
         clean_project_id = self._validate_required_ref(project_id, "project_id")
-        return [scene for scene in self._scenes.values() if scene.project_id == clean_project_id]
+        return [s for s in self._scenes.values() if s.project_id == clean_project_id]
 
     def get_scene(self, scene_id: str) -> SceneRecord:
         """Return a Scene record by ID."""
@@ -94,20 +86,52 @@ class SceneManager:
         title: str | None = None,
         purpose: str | None = None,
     ) -> SceneRecord:
-        """Update minimal Scene-owned fields.
+        """Update minimal Scene-owned fields (title, purpose).
 
-        This does not update Shots, Timeline, Characters or export state.
+        Does not update Shots, Timeline, Characters or export state.
         """
 
         scene = self.get_scene(scene_id)
-
-        changes: dict[str, str] = {"modified_at": utc_now_iso()}
+        changes: dict = {"modified_at": utc_now_iso()}
 
         if title is not None:
             changes["title"] = self._validate_required_ref(title, "title")
-
         if purpose is not None:
             changes["purpose"] = purpose.strip()
+
+        updated = scene.with_updates(**changes)
+        self._scenes[updated.scene_id] = updated
+        return updated
+
+    def update_scene_details(
+        self,
+        scene_id: str,
+        **fields: str,
+    ) -> SceneRecord:
+        """Update any combination of Scene detail fields.
+
+        Accepted keyword fields: title, purpose, description, location,
+        time_of_day, mood, conflict, narrative_beat, notes.
+
+        title must not be empty when provided.
+        Unknown field names raise ValidationError.
+        """
+
+        allowed = _DETAIL_FIELDS | {"title", "purpose"}
+        unknown = set(fields) - allowed
+        if unknown:
+            raise ValidationError(f"Unknown scene detail fields: {', '.join(sorted(unknown))}")
+
+        scene = self.get_scene(scene_id)
+        changes: dict = {"modified_at": utc_now_iso()}
+
+        for key, val in fields.items():
+            if not isinstance(val, str):
+                val = str(val)
+            if key == "title":
+                changes["title"] = self._validate_required_ref(val, "title")
+            else:
+                changes[key] = val.strip() if key != "notes" else val
 
         updated = scene.with_updates(**changes)
         self._scenes[updated.scene_id] = updated
@@ -127,18 +151,13 @@ class SceneManager:
         return archived
 
     def _validate_required_ref(self, value: str, field_name: str) -> str:
-        """Validate a required reference-like string."""
-
         clean_value = value.strip()
         if not clean_value:
             raise ValidationError(f"{field_name} must not be empty.")
         return clean_value
 
     def replace_scenes(self, records: list) -> None:
-        """Replace in-memory scene store. Used by bundle rehydration.
-
-        Accepts only SceneRecord instances. Does not change module readiness.
-        """
+        """Replace in-memory scene store. Used by bundle rehydration."""
 
         from aurora_studio.contracts.scene import SceneRecord as _SceneRecord
         for item in records:

@@ -76,6 +76,52 @@ class SceneViewModel:
 
 
 @dataclass(frozen=True)
+class SceneDetailViewModel:
+    """Full scene detail representation for inspector/editor UI.
+
+    status maps to record.state.
+    updated_at maps to record.modified_at.
+    """
+
+    scene_id: str
+    project_id: str
+    title: str
+    description: str
+    purpose: str
+    location: str
+    time_of_day: str
+    mood: str
+    conflict: str
+    narrative_beat: str
+    status: str
+    notes: str
+    created_at: str
+    updated_at: str
+
+    @classmethod
+    def from_record(cls, record: Any) -> "SceneDetailViewModel":
+        return cls(
+            scene_id=record.scene_id,
+            project_id=record.project_id,
+            title=record.title,
+            description=getattr(record, "description", ""),
+            purpose=getattr(record, "purpose", ""),
+            location=getattr(record, "location", ""),
+            time_of_day=getattr(record, "time_of_day", ""),
+            mood=getattr(record, "mood", ""),
+            conflict=getattr(record, "conflict", ""),
+            narrative_beat=getattr(record, "narrative_beat", ""),
+            status=record.state,
+            notes=getattr(record, "notes", ""),
+            created_at=record.created_at,
+            updated_at=record.modified_at,
+        )
+
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+
+@dataclass(frozen=True)
 class ShotViewModel:
     """Minimal shot representation for UI display."""
 
@@ -93,6 +139,60 @@ class ShotViewModel:
             title=record.title,
             order_index=record.order_index,
             state=record.state,
+        )
+
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+
+@dataclass(frozen=True)
+class ShotDetailViewModel:
+    """Full shot detail representation for inspector/editor UI.
+
+    status maps to record.state.
+    updated_at maps to record.modified_at.
+    """
+
+    shot_id: str
+    project_id: str
+    scene_id: str
+    title: str
+    description: str
+    shot_type: str
+    camera_angle: str
+    camera_movement: str
+    framing: str
+    lens: str
+    duration_seconds: float
+    emotion_target: str
+    visual_focus: str
+    status: str
+    notes: str
+    order_index: int
+    created_at: str
+    updated_at: str
+
+    @classmethod
+    def from_record(cls, record: Any) -> "ShotDetailViewModel":
+        return cls(
+            shot_id=record.shot_id,
+            project_id=getattr(record, "project_id", ""),
+            scene_id=record.scene_id,
+            title=record.title,
+            description=getattr(record, "description", ""),
+            shot_type=getattr(record, "shot_type", ""),
+            camera_angle=getattr(record, "camera_angle", ""),
+            camera_movement=getattr(record, "camera_movement", ""),
+            framing=getattr(record, "framing", ""),
+            lens=getattr(record, "lens", ""),
+            duration_seconds=float(getattr(record, "duration_seconds", 0.0) or 0.0),
+            emotion_target=getattr(record, "emotion_target", ""),
+            visual_focus=getattr(record, "visual_focus", ""),
+            status=record.state,
+            notes=getattr(record, "notes", ""),
+            order_index=record.order_index,
+            created_at=record.created_at,
+            updated_at=record.modified_at,
         )
 
     def to_dict(self) -> dict[str, Any]:
@@ -125,17 +225,30 @@ class TimelineViewModel:
 
 @dataclass(frozen=True)
 class TimelineItemViewModel:
-    """Minimal timeline item representation for UI display."""
+    """Timeline item representation for UI display (includes timeline_id)."""
 
     item_id: str
+    timeline_id: str
     item_type: str
     target_id: str
     order_index: int
 
     @classmethod
+    def from_item(cls, item: Any, timeline_id: str) -> "TimelineItemViewModel":
+        return cls(
+            item_id=item.item_id,
+            timeline_id=timeline_id,
+            item_type=item.item_type,
+            target_id=item.target_id,
+            order_index=item.order_index,
+        )
+
+    @classmethod
     def from_record(cls, record: Any) -> "TimelineItemViewModel":
+        """Legacy compatibility — timeline_id defaults to empty string."""
         return cls(
             item_id=record.item_id,
+            timeline_id="",
             item_type=record.item_type,
             target_id=record.target_id,
             order_index=record.order_index,
@@ -143,6 +256,39 @@ class TimelineItemViewModel:
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
+
+
+@dataclass(frozen=True)
+class TimelineSummaryViewModel:
+    """Summary of a Timeline for display."""
+
+    timeline_id: str
+    item_count: int
+    scene_item_count: int
+    shot_item_count: int
+    total_duration_seconds: float
+    ordered_items: tuple[dict, ...]
+
+    @classmethod
+    def from_summary(cls, summary: dict[str, Any]) -> "TimelineSummaryViewModel":
+        return cls(
+            timeline_id=str(summary.get("timeline_id", "")),
+            item_count=int(summary.get("item_count", 0)),
+            scene_item_count=int(summary.get("scene_item_count", 0)),
+            shot_item_count=int(summary.get("shot_item_count", 0)),
+            total_duration_seconds=float(summary.get("total_duration_seconds", 0.0)),
+            ordered_items=tuple(summary.get("ordered_items", [])),
+        )
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "timeline_id": self.timeline_id,
+            "item_count": self.item_count,
+            "scene_item_count": self.scene_item_count,
+            "shot_item_count": self.shot_item_count,
+            "total_duration_seconds": self.total_duration_seconds,
+            "ordered_items": list(self.ordered_items),
+        }
 
 
 @dataclass(frozen=True)

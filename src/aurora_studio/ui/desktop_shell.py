@@ -147,6 +147,12 @@ class DesktopShell:
 
         # Log count
         self._log_count: int = 0
+        # Inspector state (TASK-000053)
+        self._scene_form_loaded: bool = False
+        self._shot_form_loaded: bool = False
+        self._scene_dirty: bool = False
+        self._shot_dirty: bool = False
+        self._last_validation_error: str = ""
 
         if root is None:
             self._root = self._tk.Tk()
@@ -205,6 +211,32 @@ class DesktopShell:
         self._cnt_afl_var = tk.StringVar(value="0")
         self._cnt_exports_var = tk.StringVar(value="0")
         self._cnt_plugins_var = tk.StringVar(value="0")
+        # Scene detail form vars (TASK-000051)
+        self._scene_desc_var = tk.StringVar()
+        self._scene_purpose_var = tk.StringVar()
+        self._scene_location_var = tk.StringVar()
+        self._scene_time_of_day_var = tk.StringVar()
+        self._scene_mood_var = tk.StringVar()
+        self._scene_conflict_var = tk.StringVar()
+        self._scene_narrative_beat_var = tk.StringVar()
+        self._scene_notes_var = tk.StringVar()
+        # Shot detail form vars (TASK-000052)
+        self._shot_desc_var = tk.StringVar()
+        self._shot_purpose_var = tk.StringVar()
+        self._shot_type_var2 = tk.StringVar()
+        self._shot_camera_angle_var = tk.StringVar()
+        self._shot_camera_movement_var = tk.StringVar()
+        self._shot_framing_var = tk.StringVar()
+        self._shot_lens_var = tk.StringVar()
+        self._shot_duration_var = tk.StringVar()
+        self._shot_emotion_target_var = tk.StringVar()
+        self._shot_visual_focus_var = tk.StringVar()
+        self._shot_notes_var = tk.StringVar()
+        # Timeline summary vars (TASK-000055)
+        self._tl_duration_var = tk.StringVar(value="0.0s")
+        self._tl_count_var = tk.StringVar(value="0 items")
+        self._tl_scene_count_var = tk.StringVar(value="0 scenes")
+        self._tl_shot_count_var = tk.StringVar(value="0 shots")
         # Status
         self._status_var = tk.StringVar(value="Ready.")
         # Selected scene display
@@ -361,22 +393,57 @@ class DesktopShell:
         pane.pack(fill="both", expand=True, padx=4, pady=4)
 
         sl = self._ttk.LabelFrame(pane, text="Scenes")
-        sl.pack(side="left", fill="both", expand=True, padx=(0, 4))
+        sl.pack(side="left", fill="both", expand=True, padx=(0, 2))
         self._entry_row(sl, "Title:", self._scene_title_var)
         r = self._tk.Frame(sl); r.pack(fill="x")
         self._tk.Label(r, text="Selected:", width=10, anchor="w").pack(side="left")
         self._tk.Label(r, textvariable=self._sel_scene_var, fg="darkgreen",
                         anchor="w").pack(side="left")
         self._btn_row(sl, [("Create Scene", self.create_scene)])
-        self._scene_listbox = self._listbox_with_sb(sl, height=8)
+        self._scene_listbox = self._listbox_with_sb(sl, height=5)
         self._scene_listbox.bind("<<ListboxSelect>>", self._on_scene_lb)
+        # Scene detail panel (TASK-000051)
+        sd = self._ttk.LabelFrame(sl, text="Scene Detail")
+        sd.pack(fill="x", padx=2, pady=2)
+        self._entry_row(sd, "Desc:", self._scene_desc_var, width=20)
+        self._entry_row(sd, "Purpose:", self._scene_purpose_var, width=20)
+        self._entry_row(sd, "Location:", self._scene_location_var, width=20)
+        self._entry_row(sd, "Time:", self._scene_time_of_day_var, width=20)
+        self._entry_row(sd, "Mood:", self._scene_mood_var, width=20)
+        self._entry_row(sd, "Conflict:", self._scene_conflict_var, width=20)
+        self._entry_row(sd, "Beat:", self._scene_narrative_beat_var, width=20)
+        self._entry_row(sd, "Notes:", self._scene_notes_var, width=20)
+        self._btn_row(sd, [
+            ("Load Detail", self.load_selected_scene_detail),
+            ("Apply", self.apply_scene_detail_changes),
+            ("Clear", self.clear_scene_detail_form),
+        ])
 
         sh = self._ttk.LabelFrame(pane, text="Shots")
-        sh.pack(side="left", fill="both", expand=True)
+        sh.pack(side="left", fill="both", expand=True, padx=(0, 2))
         self._entry_row(sh, "Title:", self._shot_title_var)
         self._btn_row(sh, [("Create Shot", self.create_shot)])
-        self._shot_listbox = self._listbox_with_sb(sh, height=8)
+        self._shot_listbox = self._listbox_with_sb(sh, height=5)
         self._shot_listbox.bind("<<ListboxSelect>>", self._on_shot_lb)
+        # Shot detail panel (TASK-000052)
+        shd = self._ttk.LabelFrame(sh, text="Shot Detail")
+        shd.pack(fill="x", padx=2, pady=2)
+        self._entry_row(shd, "Desc:", self._shot_desc_var, width=20)
+        self._entry_row(shd, "Purpose:", self._shot_purpose_var, width=20)
+        self._entry_row(shd, "Type:", self._shot_type_var2, width=20)
+        self._entry_row(shd, "Angle:", self._shot_camera_angle_var, width=20)
+        self._entry_row(shd, "Movement:", self._shot_camera_movement_var, width=20)
+        self._entry_row(shd, "Framing:", self._shot_framing_var, width=20)
+        self._entry_row(shd, "Lens:", self._shot_lens_var, width=20)
+        self._entry_row(shd, "Duration:", self._shot_duration_var, width=20)
+        self._entry_row(shd, "Emotion:", self._shot_emotion_target_var, width=20)
+        self._entry_row(shd, "Focus:", self._shot_visual_focus_var, width=20)
+        self._entry_row(shd, "Notes:", self._shot_notes_var, width=20)
+        self._btn_row(shd, [
+            ("Load Detail", self.load_selected_shot_detail),
+            ("Apply", self.apply_shot_detail_changes),
+            ("Clear", self.clear_shot_detail_form),
+        ])
 
     def _build_timeline_tab(self, parent: Any) -> None:
         pane = self._tk.Frame(parent)
@@ -386,8 +453,23 @@ class DesktopShell:
         tl.pack(side="left", fill="both", expand=True, padx=(0, 4))
         self._entry_row(tl, "Title:", self._timeline_title_var)
         self._btn_row(tl, [("Create Timeline", self.create_timeline)])
-        self._timeline_listbox = self._listbox_with_sb(tl, height=7)
+        self._timeline_listbox = self._listbox_with_sb(tl, height=5)
         self._timeline_listbox.bind("<<ListboxSelect>>", self._on_timeline_lb)
+        # Timeline summary (TASK-000055)
+        tsf = self._ttk.LabelFrame(tl, text="Summary")
+        tsf.pack(fill="x", padx=2, pady=2)
+        for label, var in [
+            ("Duration:", self._tl_duration_var),
+            ("Items:", self._tl_count_var),
+            ("Scenes:", self._tl_scene_count_var),
+            ("Shots:", self._tl_shot_count_var),
+        ]:
+            rr = self._tk.Frame(tsf); rr.pack(fill="x")
+            self._tk.Label(rr, text=label, width=9, anchor="w",
+                           font=("Helvetica", 8)).pack(side="left")
+            self._tk.Label(rr, textvariable=var, fg="navy", anchor="w",
+                           font=("Helvetica", 8, "bold")).pack(side="left")
+        self._btn_row(tl, [("Refresh Summary", self.refresh_timeline_summary)])
 
         it = self._ttk.LabelFrame(pane, text="Timeline Items")
         it.pack(side="left", fill="both", expand=True)
@@ -398,6 +480,16 @@ class DesktopShell:
             ("Add Item", self.add_timeline_item),
             ("Remove", self.remove_timeline_item),
             ("Move", self.move_timeline_item),
+        ])
+        # TASK-000054: scene/shot add + up/down
+        self._btn_row(it, [
+            ("Add Scene", self.add_selected_scene_to_timeline),
+            ("Add Shot", self.add_selected_shot_to_timeline),
+        ])
+        self._btn_row(it, [
+            ("Move Up", self.move_timeline_item_up),
+            ("Move Down", self.move_timeline_item_down),
+            ("Refresh", self._refresh_timeline_item_list),
         ])
         self._tl_item_listbox = self._listbox_with_sb(it, height=7)
         self._tl_item_listbox.bind("<<ListboxSelect>>", self._on_tl_item_lb)
@@ -534,6 +626,10 @@ class DesktopShell:
             self.session.set_active_scene(self._selected_scene_id)
             self._refresh_shot_list()
             self.append_log(f"Selected scene: {self._selected_scene_id[:16]}")
+            try:
+                self.load_selected_scene_detail()
+            except Exception:
+                pass
 
     def on_shot_selected(self, event: Any = None) -> None:
         if self._shot_listbox is None:
@@ -552,6 +648,10 @@ class DesktopShell:
             self._selected_timeline_id = self._timeline_index_map[sel[0]]
             self._refresh_timeline_item_list()
             self.append_log(f"Selected timeline: {self._selected_timeline_id[:16]}")
+            try:
+                self.refresh_timeline_summary()
+            except Exception:
+                pass
 
     def on_timeline_item_selected(self, event: Any = None) -> None:
         if self._tl_item_listbox is None:
@@ -1162,6 +1262,237 @@ class DesktopShell:
     # ------------------------------------------------------------------
     # Snapshots
     # ------------------------------------------------------------------
+
+    # ------------------------------------------------------------------
+    # Scene Detail Inspector (TASK-000051 / TASK-000053)
+    # ------------------------------------------------------------------
+
+    def load_selected_scene_detail(self) -> None:
+        """Load selected scene detail into the detail form."""
+        if not self._selected_scene_id:
+            msg = "No scene selected — select a scene first."
+            self.set_status(msg); self.append_log(msg, "warn"); return
+        r = self.session.get_scene_detail(self._selected_scene_id)
+        if not r.ok:
+            msg = normalize_ui_error(r.message)
+            self.set_status(msg); self.append_log(msg, "error")
+            self._last_validation_error = msg; return
+        p = r.payload or {}
+        self._scene_title_var.set(p.get("title", ""))
+        self._scene_desc_var.set(p.get("description", ""))
+        self._scene_purpose_var.set(p.get("purpose", ""))
+        self._scene_location_var.set(p.get("location", ""))
+        self._scene_time_of_day_var.set(p.get("time_of_day", ""))
+        self._scene_mood_var.set(p.get("mood", ""))
+        self._scene_conflict_var.set(p.get("conflict", ""))
+        self._scene_narrative_beat_var.set(p.get("narrative_beat", ""))
+        self._scene_notes_var.set(p.get("notes", ""))
+        self._scene_form_loaded = True
+        self._last_validation_error = ""
+        self.set_status(f"Scene detail loaded: {self._selected_scene_id[:16]}")
+
+    def apply_scene_detail_changes(self) -> None:
+        """Apply scene detail form values to the selected scene."""
+        if not self._selected_scene_id:
+            msg = "No scene selected — select a scene first."
+            self.set_status(msg); self.append_log(msg, "warn")
+            self._last_validation_error = msg; return
+        fields = {
+            "title": self._scene_title_var.get().strip(),
+            "description": self._scene_desc_var.get(),
+            "purpose": self._scene_purpose_var.get(),
+            "location": self._scene_location_var.get(),
+            "time_of_day": self._scene_time_of_day_var.get(),
+            "mood": self._scene_mood_var.get(),
+            "conflict": self._scene_conflict_var.get(),
+            "narrative_beat": self._scene_narrative_beat_var.get(),
+            "notes": self._scene_notes_var.get(),
+        }
+        # Filter out None; keep empty strings
+        fields = {k: v for k, v in fields.items() if v is not None}
+        r = self.session.update_scene_detail(self._selected_scene_id, fields)
+        if r.ok:
+            self._last_validation_error = ""
+            msg = f"Scene updated: {self._selected_scene_id[:16]}"
+        else:
+            self._last_validation_error = r.message
+            msg = normalize_ui_error(r.message)
+        self.set_status(msg); self.append_log(msg, "info" if r.ok else "error")
+        self.refresh()
+
+    def clear_scene_detail_form(self) -> None:
+        """Clear scene detail form without deleting records."""
+        for var in (self._scene_title_var, self._scene_desc_var, self._scene_purpose_var,
+                    self._scene_location_var, self._scene_time_of_day_var, self._scene_mood_var,
+                    self._scene_conflict_var, self._scene_narrative_beat_var, self._scene_notes_var):
+            var.set("")
+        self._scene_form_loaded = False
+        self._last_validation_error = ""
+        self.set_status("Scene detail form cleared.")
+
+    # ------------------------------------------------------------------
+    # Shot Detail Inspector (TASK-000052 / TASK-000053)
+    # ------------------------------------------------------------------
+
+    def load_selected_shot_detail(self) -> None:
+        """Load selected shot detail into the detail form."""
+        if not self._selected_shot_id:
+            msg = "No shot selected — select a shot first."
+            self.set_status(msg); self.append_log(msg, "warn"); return
+        r = self.session.get_shot_detail(self._selected_shot_id)
+        if not r.ok:
+            msg = normalize_ui_error(r.message)
+            self.set_status(msg); self.append_log(msg, "error")
+            self._last_validation_error = msg; return
+        p = r.payload or {}
+        self._shot_title_var.set(p.get("title", ""))
+        self._shot_desc_var.set(p.get("description", ""))
+        self._shot_purpose_var.set(p.get("purpose", ""))
+        self._shot_type_var2.set(p.get("shot_type", ""))
+        self._shot_camera_angle_var.set(p.get("camera_angle", ""))
+        self._shot_camera_movement_var.set(p.get("camera_movement", ""))
+        self._shot_framing_var.set(p.get("framing", ""))
+        self._shot_lens_var.set(p.get("lens", ""))
+        self._shot_duration_var.set(str(p.get("duration_seconds", "")))
+        self._shot_emotion_target_var.set(p.get("emotion_target", ""))
+        self._shot_visual_focus_var.set(p.get("visual_focus", ""))
+        self._shot_notes_var.set(p.get("notes", ""))
+        self._shot_form_loaded = True
+        self._last_validation_error = ""
+        self.set_status(f"Shot detail loaded: {self._selected_shot_id[:16]}")
+
+    def apply_shot_detail_changes(self) -> None:
+        """Apply shot detail form values to the selected shot."""
+        if not self._selected_shot_id:
+            msg = "No shot selected — select a shot first."
+            self.set_status(msg); self.append_log(msg, "warn")
+            self._last_validation_error = msg; return
+        duration_raw = self._shot_duration_var.get().strip()
+        fields: dict = {
+            "title": self._shot_title_var.get().strip(),
+            "description": self._shot_desc_var.get(),
+            "purpose": self._shot_purpose_var.get(),
+            "shot_type": self._shot_type_var2.get(),
+            "camera_angle": self._shot_camera_angle_var.get(),
+            "camera_movement": self._shot_camera_movement_var.get(),
+            "framing": self._shot_framing_var.get(),
+            "lens": self._shot_lens_var.get(),
+            "emotion_target": self._shot_emotion_target_var.get(),
+            "visual_focus": self._shot_visual_focus_var.get(),
+            "notes": self._shot_notes_var.get(),
+        }
+        if duration_raw:
+            fields["duration_seconds"] = duration_raw
+        r = self.session.update_shot_detail(self._selected_shot_id, fields)
+        if r.ok:
+            self._last_validation_error = ""
+            msg = f"Shot updated: {self._selected_shot_id[:16]}"
+        else:
+            self._last_validation_error = r.message
+            msg = normalize_ui_error(r.message)
+        self.set_status(msg); self.append_log(msg, "info" if r.ok else "error")
+        self.refresh()
+
+    def clear_shot_detail_form(self) -> None:
+        """Clear shot detail form without deleting records."""
+        for var in (self._shot_title_var, self._shot_desc_var, self._shot_purpose_var,
+                    self._shot_type_var2, self._shot_camera_angle_var,
+                    self._shot_camera_movement_var, self._shot_framing_var,
+                    self._shot_lens_var, self._shot_duration_var,
+                    self._shot_emotion_target_var, self._shot_visual_focus_var,
+                    self._shot_notes_var):
+            var.set("")
+        self._shot_form_loaded = False
+        self._last_validation_error = ""
+        self.set_status("Shot detail form cleared.")
+
+    # ------------------------------------------------------------------
+    # Inspector snapshot (TASK-000053)
+    # ------------------------------------------------------------------
+
+    def get_inspector_snapshot(self) -> dict:
+        """Return JSON-serializable inspector state snapshot."""
+        return {
+            "selected_scene_id": self._selected_scene_id,
+            "selected_shot_id": self._selected_shot_id,
+            "scene_form_loaded": self._scene_form_loaded,
+            "shot_form_loaded": self._shot_form_loaded,
+            "scene_dirty": self._scene_dirty,
+            "shot_dirty": self._shot_dirty,
+            "last_validation_error": self._last_validation_error,
+        }
+
+    # ------------------------------------------------------------------
+    # Timeline extended actions (TASK-000054 / TASK-000055)
+    # ------------------------------------------------------------------
+
+    def add_selected_scene_to_timeline(self) -> None:
+        """Add selected scene to selected timeline."""
+        if not self._selected_timeline_id:
+            msg = "No timeline selected."; self.set_status(msg); self.append_log(msg, "warn"); return
+        if not self._selected_scene_id:
+            msg = "No scene selected."; self.set_status(msg); self.append_log(msg, "warn"); return
+        r = self.session.add_scene_to_timeline(self._selected_timeline_id, self._selected_scene_id)
+        msg = "Scene added to timeline." if r.ok else normalize_ui_error(r.message)
+        self.set_status(msg); self.append_log(msg, "info" if r.ok else "error")
+        self._refresh_timeline_item_list()
+        self.refresh_timeline_summary()
+
+    def add_selected_shot_to_timeline(self) -> None:
+        """Add selected shot to selected timeline."""
+        if not self._selected_timeline_id:
+            msg = "No timeline selected."; self.set_status(msg); self.append_log(msg, "warn"); return
+        if not self._selected_shot_id:
+            msg = "No shot selected."; self.set_status(msg); self.append_log(msg, "warn"); return
+        r = self.session.add_shot_to_timeline(self._selected_timeline_id, self._selected_shot_id)
+        msg = "Shot added to timeline." if r.ok else normalize_ui_error(r.message)
+        self.set_status(msg); self.append_log(msg, "info" if r.ok else "error")
+        self._refresh_timeline_item_list()
+        self.refresh_timeline_summary()
+
+    def move_timeline_item_up(self) -> None:
+        """Move selected timeline item up."""
+        if not self._selected_timeline_id:
+            msg = "No timeline selected."; self.set_status(msg); self.append_log(msg, "warn"); return
+        if not self._selected_timeline_item_id:
+            msg = "No item selected."; self.set_status(msg); self.append_log(msg, "warn"); return
+        r = self.session.move_timeline_item_up(
+            self._selected_timeline_id, self._selected_timeline_item_id)
+        msg = "Item moved up." if r.ok else normalize_ui_error(r.message)
+        self.set_status(msg); self.append_log(msg, "info" if r.ok else "error")
+        self._refresh_timeline_item_list()
+        self.refresh_timeline_summary()
+
+    def move_timeline_item_down(self) -> None:
+        """Move selected timeline item down."""
+        if not self._selected_timeline_id:
+            msg = "No timeline selected."; self.set_status(msg); self.append_log(msg, "warn"); return
+        if not self._selected_timeline_item_id:
+            msg = "No item selected."; self.set_status(msg); self.append_log(msg, "warn"); return
+        r = self.session.move_timeline_item_down(
+            self._selected_timeline_id, self._selected_timeline_item_id)
+        msg = "Item moved down." if r.ok else normalize_ui_error(r.message)
+        self.set_status(msg); self.append_log(msg, "info" if r.ok else "error")
+        self._refresh_timeline_item_list()
+        self.refresh_timeline_summary()
+
+    def refresh_timeline_summary(self) -> None:
+        """Refresh timeline summary labels for selected timeline."""
+        if not self._selected_timeline_id:
+            self._tl_duration_var.set("0.0s")
+            self._tl_count_var.set("0 items")
+            self._tl_scene_count_var.set("0 scenes")
+            self._tl_shot_count_var.set("0 shots")
+            return
+        r = self.session.get_timeline_summary(self._selected_timeline_id)
+        if r.ok:
+            p = r.payload or {}
+            self._tl_duration_var.set(f"{p.get('total_duration_seconds', 0.0):.1f}s")
+            self._tl_count_var.set(f"{p.get('item_count', 0)} items")
+            self._tl_scene_count_var.set(f"{p.get('scene_item_count', 0)} scenes")
+            self._tl_shot_count_var.set(f"{p.get('shot_item_count', 0)} shots")
+        else:
+            self._tl_duration_var.set("error")
 
     def get_state_snapshot(self) -> dict[str, Any]:
         result = self.session.get_app_state()

@@ -1,0 +1,69 @@
+{
+  "schema_version": "0.1.0",
+  "project_metadata": {
+    "project_id": "project-063dc2fb025b44699a6f3ad3cb4cd521",
+    "title": "Demo Project",
+    "version": "0.1.0",
+    "created_at": "2026-06-27T16:40:36.536945+00:00",
+    "modified_at": "2026-06-27T16:40:36.536945+00:00"
+  },
+  "workspace_state": {
+    "active_project_id": "project-063dc2fb025b44699a6f3ad3cb4cd521",
+    "active_scene_id": "scene-1fd056702e5b443f823a391b6b91edd7",
+    "active_shot_id": "shot-e7b9b10a44ef40afa455f9b33ae4e67a",
+    "active_timeline_id": null,
+    "selected_ref": null,
+    "mode": "default"
+  },
+  "scenes": [
+    {
+      "scene_id": "scene-1fd056702e5b443f823a391b6b91edd7",
+      "project_id": "project-063dc2fb025b44699a6f3ad3cb4cd521",
+      "title": "Opening Scene",
+      "purpose": "",
+      "state": "draft",
+      "created_at": "2026-06-27T16:40:36.539490+00:00",
+      "modified_at": "2026-06-27T16:40:36.539490+00:00",
+      "archived_at": null,
+      "description": "",
+      "location": "",
+      "time_of_day": "",
+      "mood": "",
+      "conflict": "",
+      "narrative_beat": "",
+      "notes": ""
+    }
+  ],
+  "shots": [
+    {
+      "shot_id": "shot-e7b9b10a44ef40afa455f9b33ae4e67a",
+      "scene_id": "scene-1fd056702e5b443f823a391b6b91edd7",
+      "title": "Opening Shot",
+      "purpose": "",
+      "order_index": 0,
+      "state": "draft",
+      "created_at": "2026-06-27T16:40:36.539535+00:00",
+      "modified_at": "2026-06-27T16:40:36.539535+00:00",
+      "archived_at": null,
+      "project_id": "",
+      "description": "",
+      "shot_type": "",
+      "camera_angle": "",
+      "camera_movement": "",
+      "framing": "",
+      "lens": "",
+      "duration_seconds": 0.0,
+      "emotion_target": "",
+      "visual_focus": "",
+      "notes": ""
+    }
+  ],
+  "timelines": [],
+  "assets": [],
+  "characters": [],
+  "afl_reports": [],
+  "export_artifacts": [],
+  "plugins": [],
+  "created_at": "2026-06-27T16:40:36.539581+00:00",
+  "modified_at": "2026-06-27T16:40:36.539897+00:00"
+}
