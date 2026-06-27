@@ -144,3 +144,15 @@ class AFLEngine:
             raise ValidationError("structures must be a list.")
 
         return []
+
+    def replace_validation_reports(self, records: list) -> None:
+        """Replace in-memory report store. Used by bundle rehydration.
+
+        Accepts only AFLValidationReport instances. Does not change module readiness.
+        """
+
+        from aurora_studio.contracts.afl import AFLValidationReport as _AFLValidationReport
+        for item in records:
+            if not isinstance(item, _AFLValidationReport):
+                raise ValidationError("replace_validation_reports requires AFLValidationReport instances.")
+        self._reports = {r.report_id: r for r in records}

@@ -162,3 +162,15 @@ class AssetManager:
         if not clean_value:
             raise ValidationError(f"{field_name} must not be empty.")
         return clean_value
+
+    def replace_assets(self, records: list) -> None:
+        """Replace in-memory asset store. Used by bundle rehydration.
+
+        Accepts only AssetRecord instances. Does not change module readiness.
+        """
+
+        from aurora_studio.contracts.asset import AssetRecord as _AssetRecord
+        for item in records:
+            if not isinstance(item, _AssetRecord):
+                raise ValidationError("replace_assets requires AssetRecord instances.")
+        self._assets = {r.asset_id: r for r in records}

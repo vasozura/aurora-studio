@@ -124,3 +124,15 @@ class Workspace:
         if not clean_value:
             raise ValidationError(f"{field_name} must not be empty when provided.")
         return clean_value
+
+    def replace_state(self, state: "WorkspaceState") -> "WorkspaceState":
+        """Replace in-memory workspace state. Used by bundle rehydration.
+
+        Accepts only WorkspaceState. Does not validate referenced IDs.
+        Does not change module readiness.
+        """
+
+        if not isinstance(state, WorkspaceState):
+            raise ValidationError("replace_state requires a WorkspaceState instance.")
+        self._state = state
+        return self._state

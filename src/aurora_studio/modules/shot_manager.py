@@ -176,3 +176,15 @@ class ShotManager:
         if not clean_value:
             raise ValidationError(f"{field_name} must not be empty.")
         return clean_value
+
+    def replace_shots(self, records: list) -> None:
+        """Replace in-memory shot store. Used by bundle rehydration.
+
+        Accepts only ShotRecord instances. Does not change module readiness.
+        """
+
+        from aurora_studio.contracts.shot import ShotRecord as _ShotRecord
+        for item in records:
+            if not isinstance(item, _ShotRecord):
+                raise ValidationError("replace_shots requires ShotRecord instances.")
+        self._shots = {r.shot_id: r for r in records}

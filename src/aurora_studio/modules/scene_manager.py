@@ -133,3 +133,15 @@ class SceneManager:
         if not clean_value:
             raise ValidationError(f"{field_name} must not be empty.")
         return clean_value
+
+    def replace_scenes(self, records: list) -> None:
+        """Replace in-memory scene store. Used by bundle rehydration.
+
+        Accepts only SceneRecord instances. Does not change module readiness.
+        """
+
+        from aurora_studio.contracts.scene import SceneRecord as _SceneRecord
+        for item in records:
+            if not isinstance(item, _SceneRecord):
+                raise ValidationError("replace_scenes requires SceneRecord instances.")
+        self._scenes = {r.scene_id: r for r in records}

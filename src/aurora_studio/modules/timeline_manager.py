@@ -211,3 +211,15 @@ class TimelineManager:
         if not clean_value:
             raise ValidationError(f"{field_name} must not be empty.")
         return clean_value
+
+    def replace_timelines(self, records: list) -> None:
+        """Replace in-memory timeline store. Used by bundle rehydration.
+
+        Accepts only TimelineRecord instances. Does not change module readiness.
+        """
+
+        from aurora_studio.contracts.timeline import TimelineRecord as _TimelineRecord
+        for item in records:
+            if not isinstance(item, _TimelineRecord):
+                raise ValidationError("replace_timelines requires TimelineRecord instances.")
+        self._timelines = {r.timeline_id: r for r in records}

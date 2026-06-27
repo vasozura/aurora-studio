@@ -123,3 +123,15 @@ class PluginManager:
         if not clean_value:
             raise ValidationError(f"{field_name} must not be empty.")
         return clean_value
+
+    def replace_plugins(self, records: list) -> None:
+        """Replace in-memory plugin store. Used by bundle rehydration.
+
+        Accepts only PluginMetadata instances. Does not change module readiness.
+        """
+
+        from aurora_studio.contracts.plugin import PluginMetadata as _PluginMetadata
+        for item in records:
+            if not isinstance(item, _PluginMetadata):
+                raise ValidationError("replace_plugins requires PluginMetadata instances.")
+        self._plugins = {r.plugin_id: r for r in records}

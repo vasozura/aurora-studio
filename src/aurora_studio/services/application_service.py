@@ -158,3 +158,42 @@ class ApplicationService:
                 "No active project. Call create_project() or open_project() first."
             )
         return state.active_project_id
+
+    def load_and_rehydrate_bundle(self, path: str | Path) -> dict:
+        """Load a local JSON bundle and restore in-memory manager state.
+
+        Unlike load_bundle(), this method restores all service managers from
+        the bundle contents and updates current_project_metadata.
+
+        Returns dict with keys: bundle, summary.
+        """
+
+        from aurora_studio.persistence.rehydration import BundleRehydrator
+
+        bundle = self.project_store.load_bundle(path)
+
+        rehydrator = BundleRehydrator()
+        summary = rehydrator.rehydrate(
+            bundle,
+            workspace=self.workspace,
+            scene_manager=self.scene_manager,
+            shot_manager=self.shot_manager,
+            timeline_manager=self.timeline_manager,
+            asset_manager=self.asset_manager,
+            character_manager=self.character_manager,
+            afl_engine=self.afl_engine,
+            prompt_export_manager=self.prompt_export_manager,
+            plugin_manager=self.plugin_manager,
+        )
+
+        # Restore current project metadata from bundle if possible
+        if bundle.project_metadata:
+            try:
+                from aurora_studio.contracts.project import ProjectMetadata
+                self._current_project_metadata = ProjectMetadata.from_dict(
+                    bundle.project_metadata
+                )
+            except Exception:
+                pass  # best-effort; metadata stays as-is if restoration fails
+
+        return {"bundle": bundle, "summary": summary}

@@ -123,3 +123,15 @@ class PromptExportManager:
         if not clean_value:
             raise ValidationError(f"{field_name} must not be empty.")
         return clean_value
+
+    def replace_export_artifacts(self, records: list) -> None:
+        """Replace in-memory artifact store. Used by bundle rehydration.
+
+        Accepts only ExportArtifactRecord instances. Does not change module readiness.
+        """
+
+        from aurora_studio.contracts.export import ExportArtifactRecord as _ExportArtifactRecord
+        for item in records:
+            if not isinstance(item, _ExportArtifactRecord):
+                raise ValidationError("replace_export_artifacts requires ExportArtifactRecord instances.")
+        self._artifacts = {r.artifact_id: r for r in records}

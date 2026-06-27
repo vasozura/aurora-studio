@@ -31,3 +31,16 @@ class WorkspaceState:
         """Return a new workspace state with selected fields changed."""
 
         return replace(self, **changes)
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> "WorkspaceState":
+        """Restore WorkspaceState from a dict produced by to_dict()."""
+
+        return cls(
+            active_project_id=data.get("active_project_id"),
+            active_scene_id=data.get("active_scene_id"),
+            active_shot_id=data.get("active_shot_id"),
+            active_timeline_id=data.get("active_timeline_id"),
+            selected_ref=data.get("selected_ref"),
+            mode=str(data.get("mode", DEFAULT_WORKSPACE_MODE)),
+        )

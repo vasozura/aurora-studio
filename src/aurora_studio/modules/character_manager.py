@@ -165,3 +165,15 @@ class CharacterManager:
         if not clean_value:
             raise ValidationError(f"{field_name} must not be empty.")
         return clean_value
+
+    def replace_characters(self, records: list) -> None:
+        """Replace in-memory character store. Used by bundle rehydration.
+
+        Accepts only CharacterRecord instances. Does not change module readiness.
+        """
+
+        from aurora_studio.contracts.character import CharacterRecord as _CharacterRecord
+        for item in records:
+            if not isinstance(item, _CharacterRecord):
+                raise ValidationError("replace_characters requires CharacterRecord instances.")
+        self._characters = {r.character_id: r for r in records}
