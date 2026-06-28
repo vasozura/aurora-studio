@@ -13,6 +13,7 @@ from __future__ import annotations
 from typing import Any
 
 from aurora_studio.contracts.afl import AFLValidationReport
+from aurora_studio.modules.asset_link_manager import AssetLink, AssetLinkManager
 from aurora_studio.contracts.asset import AssetRecord
 from aurora_studio.contracts.character import CharacterRecord
 from aurora_studio.contracts.export import ExportArtifactRecord
@@ -44,8 +45,11 @@ class BundleRehydrator:
         asset_manager=None,
         character_manager=None,
         afl_engine=None,
+        asset_link_manager=None,
         prompt_export_manager=None,
         plugin_manager=None,
+        prompt_template_manager=None,
+        export_profile_manager=None,
     ) -> dict[str, Any]:
         """Restore managers from bundle. Returns a summary of counts restored.
 
@@ -58,6 +62,7 @@ class BundleRehydrator:
             asset_manager: Optional AssetManager to restore assets into.
             character_manager: Optional CharacterManager to restore characters into.
             afl_engine: Optional AFLEngine to restore validation reports into.
+            asset_link_manager: Optional AssetLinkManager to restore links into.
             prompt_export_manager: Optional PromptExportManager to restore artifacts into.
             plugin_manager: Optional PluginManager to restore plugins into.
 
@@ -76,8 +81,11 @@ class BundleRehydrator:
             "assets": 0,
             "characters": 0,
             "afl_reports": 0,
+            "asset_links": 0,
             "export_artifacts": 0,
             "plugins": 0,
+            "prompt_templates": 0,
+            "export_profiles": 0,
             "workspace_restored": False,
         }
 
@@ -117,6 +125,12 @@ class BundleRehydrator:
             afl_engine.replace_validation_reports(records)
             summary["afl_reports"] = len(records)
 
+        if asset_link_manager is not None:
+            raw_links = getattr(bundle, "asset_links", ()) or ()
+            records = [AssetLink.from_dict(d) for d in raw_links]
+            asset_link_manager.replace_links(records)
+            summary["asset_links"] = len(records)
+
         # Export artifacts
         if prompt_export_manager is not None:
             records = [ExportArtifactRecord.from_dict(d) for d in bundle.export_artifacts]
@@ -134,5 +148,21 @@ class BundleRehydrator:
             state = WorkspaceState.from_dict(bundle.workspace_state)
             workspace.replace_state(state)
             summary["workspace_restored"] = True
+
+        # Prompt templates (custom only; defaults stay in memory)
+        if prompt_template_manager is not None:
+            from aurora_studio.contracts.prompt_template import PromptTemplateRecord
+            raw = getattr(bundle, "prompt_templates", ()) or ()
+            records = [PromptTemplateRecord.from_dict(d) for d in raw]
+            prompt_template_manager.replace_templates(records)
+            summary["prompt_templates"] = len(records)
+
+        # Export profiles
+        if export_profile_manager is not None:
+            from aurora_studio.contracts.export_profile import ExportProfileRecord
+            raw = getattr(bundle, "export_profiles", ()) or ()
+            records = [ExportProfileRecord.from_dict(d) for d in raw]
+            export_profile_manager.replace_profiles(records)
+            summary["export_profiles"] = len(records)
 
         return summary

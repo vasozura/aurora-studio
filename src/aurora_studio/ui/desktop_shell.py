@@ -32,7 +32,7 @@ from aurora_studio.ui.actions import UISession
 # Module-level constants
 # ---------------------------------------------------------------------------
 
-TABS = ["Scenes & Shots", "Timeline", "Assets", "Characters", "AFL", "Exports", "Plugins"]
+TABS = ["Scenes & Shots", "Timeline", "Assets", "Characters", "AFL", "Exports", "Plugins", "Providers"]
 SECTIONS = ["Project", "Workspace", "Status"]
 SHORTCUTS: dict[str, str] = {
     "Ctrl+N": "create_project",
@@ -153,6 +153,11 @@ class DesktopShell:
         self._scene_dirty: bool = False
         self._shot_dirty: bool = False
         self._last_validation_error: str = ""
+        # Asset / Character / AFL inspector state (TASK-000056/058/060)
+        self._asset_form_loaded: bool = False
+        self._asset_dirty: bool = False
+        self._character_form_loaded: bool = False
+        self._character_dirty: bool = False
 
         if root is None:
             self._root = self._tk.Tk()
@@ -188,13 +193,57 @@ class DesktopShell:
         self._char_name_var = tk.StringVar()
         self._char_desc_var = tk.StringVar()
         self._char_ref_asset_var = tk.StringVar()
+        # Asset detail form vars (TASK-000056)
+        self._asset_desc_var = tk.StringVar()
+        self._asset_tags_var = tk.StringVar()
+        self._asset_notes_var = tk.StringVar()
+        self._asset_detail_type_var = tk.StringVar()
+        self._asset_detail_location_var = tk.StringVar()
+        # Character detail form vars (TASK-000058)
+        self._char_role_var = tk.StringVar()
+        self._char_visual_desc_var = tk.StringVar()
+        self._char_personality_var = tk.StringVar()
+        self._char_motivation_var = tk.StringVar()
+        self._char_conflict_var = tk.StringVar()
+        self._char_arc_notes_var = tk.StringVar()
+        self._char_detail_notes_var = tk.StringVar()
+        # Character reference vars (TASK-000059)
+        self._char_ref_type_var = tk.StringVar(value="other")
+        self._char_ref_is_primary_var = tk.StringVar(value="0")
+        self._char_ref_notes_var = tk.StringVar()
+        # Asset link vars (TASK-000057)
+        self._asset_link_id_var = tk.StringVar()
         self._afl_target_var = tk.StringVar()
         self._afl_payload_var = tk.StringVar(value='{"kind": "smoke"}')
         self._export_source_var = tk.StringVar()
         self._export_type_var = tk.StringVar()
         self._export_provider_var = tk.StringVar()
         self._export_content_var = tk.StringVar()
+        self._export_template_id_var = tk.StringVar()
+        self._export_preview_source_type_var = tk.StringVar()
+        self._export_preview_source_id_var = tk.StringVar()
+        self._export_preview_text: Any = None
         self._plugin_name_var = tk.StringVar()
+        self._provider_id_var = tk.StringVar()
+        self._provider_dry_run_prompt_var = tk.StringVar()
+        self._provider_dry_run_provider_var = tk.StringVar(value="dry-run-local")
+        self._provider_result_text: Any = None
+        self._provider_listbox: Any = None
+        self._provider_index_map: list[str] = []
+        self._provider_log_listbox: Any = None
+        self._queue_source_type_var = tk.StringVar(value="scene")
+        self._queue_source_id_var = tk.StringVar()
+        self._queue_prompt_var = tk.StringVar()
+        self._queue_listbox: Any = None
+        self._queue_index_map: list[str] = []
+        self._batch_source_type_var = tk.StringVar(value="scene")
+        self._batch_source_ids_var = tk.StringVar()
+        self._batch_template_id_var = tk.StringVar()
+        self._batch_profile_id_var = tk.StringVar()
+        self._batch_result_var = tk.StringVar()
+        self._run_history_listbox: Any = None
+        self._manifest_text: Any = None
+        self._manifest_result_var = tk.StringVar()
         self._plugin_version_var = tk.StringVar()
         self._plugin_caps_var = tk.StringVar()
         self._plugin_perms_var = tk.StringVar()
@@ -363,6 +412,7 @@ class DesktopShell:
             ("AFL", self._build_afl_tab),
             ("Exports", self._build_exports_tab),
             ("Plugins", self._build_plugins_tab),
+            ("Providers", self._build_providers_tab),
         ]:
             frame = self._ttk.Frame(self._notebook)
             self._notebook.add(frame, text=title)
@@ -495,32 +545,80 @@ class DesktopShell:
         self._tl_item_listbox.bind("<<ListboxSelect>>", self._on_tl_item_lb)
 
     def _build_assets_tab(self, parent: Any) -> None:
-        f = self._ttk.LabelFrame(parent, text="Assets")
-        f.pack(fill="both", expand=True, padx=4, pady=4)
-        self._entry_row(f, "Type:", self._asset_type_var)
-        self._entry_row(f, "Name:", self._asset_name_var)
-        self._entry_row(f, "Location:", self._asset_location_var)
-        self._btn_row(f, [
+        top = self._ttk.LabelFrame(parent, text="Import Asset")
+        top.pack(fill="x", padx=4, pady=2)
+        self._entry_row(top, "Type:", self._asset_type_var)
+        self._entry_row(top, "Name:", self._asset_name_var)
+        self._entry_row(top, "Location:", self._asset_location_var)
+        self._btn_row(top, [
             ("Import Asset", self.import_asset),
             ("Mark Missing", self.mark_asset_missing),
             ("Archive", self.archive_asset),
         ])
-        self._asset_listbox = self._listbox_with_sb(f, height=10)
+        lb_f = self._ttk.LabelFrame(parent, text="Asset List")
+        lb_f.pack(fill="both", expand=True, padx=4, pady=2)
+        self._asset_listbox = self._listbox_with_sb(lb_f, height=5)
         self._asset_listbox.bind("<<ListboxSelect>>", self._on_asset_lb)
+        # TASK-000056: Asset detail form
+        det = self._ttk.LabelFrame(parent, text="Asset Detail")
+        det.pack(fill="x", padx=4, pady=2)
+        self._entry_row(det, "Type:", self._asset_detail_type_var, width=20)
+        self._entry_row(det, "Location:", self._asset_detail_location_var, width=20)
+        self._entry_row(det, "Desc:", self._asset_desc_var, width=20)
+        self._entry_row(det, "Tags:", self._asset_tags_var, width=20)
+        self._entry_row(det, "Notes:", self._asset_notes_var, width=20)
+        self._btn_row(det, [
+            ("Load Detail", self.load_selected_asset_detail),
+            ("Apply", self.apply_asset_metadata_changes),
+            ("Clear", self.clear_asset_detail_form),
+        ])
+        # TASK-000057: Asset link controls
+        lnk = self._ttk.LabelFrame(parent, text="Asset Links")
+        lnk.pack(fill="x", padx=4, pady=2)
+        self._entry_row(lnk, "Target ID:", self._asset_link_id_var, width=20)
+        self._btn_row(lnk, [
+            ("Link→Scene", self.link_asset_to_scene),
+            ("Link→Shot", self.link_asset_to_shot),
+            ("Link→Char", self.link_asset_to_character),
+            ("Unlink→Scene", self.unlink_asset_from_scene),
+        ])
 
     def _build_characters_tab(self, parent: Any) -> None:
-        f = self._ttk.LabelFrame(parent, text="Characters")
-        f.pack(fill="both", expand=True, padx=4, pady=4)
-        self._entry_row(f, "Name:", self._char_name_var)
-        self._entry_row(f, "Desc:", self._char_desc_var)
-        self._btn_row(f, [("Create Character", self.create_character)])
-        self._character_listbox = self._listbox_with_sb(f, height=6)
+        top = self._ttk.LabelFrame(parent, text="Create Character")
+        top.pack(fill="x", padx=4, pady=2)
+        self._entry_row(top, "Name:", self._char_name_var)
+        self._entry_row(top, "Desc:", self._char_desc_var)
+        self._btn_row(top, [("Create Character", self.create_character)])
+        lb_f = self._ttk.LabelFrame(parent, text="Character List")
+        lb_f.pack(fill="both", expand=True, padx=4, pady=2)
+        self._character_listbox = self._listbox_with_sb(lb_f, height=4)
         self._character_listbox.bind("<<ListboxSelect>>", self._on_character_lb)
-        self._entry_row(f, "Ref Asset:", self._char_ref_asset_var)
-        self._btn_row(f, [
+        # TASK-000058: Character detail form
+        det = self._ttk.LabelFrame(parent, text="Character Detail")
+        det.pack(fill="x", padx=4, pady=2)
+        self._entry_row(det, "Role:", self._char_role_var, width=18)
+        self._entry_row(det, "Personality:", self._char_personality_var, width=18)
+        self._entry_row(det, "Motivation:", self._char_motivation_var, width=18)
+        self._entry_row(det, "Notes:", self._char_detail_notes_var, width=18)
+        self._btn_row(det, [
+            ("Load Detail", self.load_selected_character_detail),
+            ("Apply", self.apply_character_detail_changes),
+            ("Archive", self.archive_character),
+        ])
+        # TASK-000059: Character reference workflow
+        ref_f = self._ttk.LabelFrame(parent, text="Character References")
+        ref_f.pack(fill="x", padx=4, pady=2)
+        self._entry_row(ref_f, "Ref Asset:", self._char_ref_asset_var, width=18)
+        self._entry_row(ref_f, "Ref Type:", self._char_ref_type_var, width=18)
+        self._entry_row(ref_f, "Ref Notes:", self._char_ref_notes_var, width=18)
+        self._btn_row(ref_f, [
             ("Add Ref", self.add_character_reference_asset),
             ("Remove Ref", self.remove_character_reference_asset),
-            ("Archive", self.archive_character),
+        ])
+        self._btn_row(ref_f, [
+            ("Add Structured Ref", self.add_character_structured_reference),
+            ("Remove Struct Ref", self.remove_character_structured_reference),
+            ("Mark Primary", self.mark_primary_character_reference),
         ])
 
     def _build_afl_tab(self, parent: Any) -> None:
@@ -528,11 +626,29 @@ class DesktopShell:
         f.pack(fill="both", expand=True, padx=4, pady=4)
         self._entry_row(f, "Target Ref:", self._afl_target_var)
         self._entry_row(f, "Payload:", self._afl_payload_var)
-        self._btn_row(f, [("Validate AFL", self.validate_afl_structure)])
-        self._afl_report_listbox = self._listbox_with_sb(f, height=10)
+        self._btn_row(f, [
+            ("Validate AFL", self.validate_afl_structure),
+            ("Validate Project", self.validate_current_project_structure),
+        ])
+        self._afl_report_listbox = self._listbox_with_sb(f, height=8)
         self._afl_report_listbox.bind("<<ListboxSelect>>", self._on_afl_lb)
 
     def _build_exports_tab(self, parent: Any) -> None:
+        # Prompt Preview sub-section
+        pf = self._ttk.LabelFrame(parent, text="Prompt Preview")
+        pf.pack(fill="x", padx=4, pady=2)
+        self._entry_row(pf, "Template ID:", self._export_template_id_var)
+        self._entry_row(pf, "Source Type:", self._export_preview_source_type_var)
+        self._entry_row(pf, "Source ID (preview):", self._export_preview_source_id_var)
+        self._btn_row(pf, [
+            ("Render Preview", self.render_prompt_preview),
+            ("Save as Export", self.save_prompt_preview_as_export),
+        ])
+        if self._tk is not None:
+            self._export_preview_text = self._tk.Text(pf, height=4, wrap="word")
+            self._export_preview_text.pack(fill="x", padx=4, pady=2)
+
+        # Create artifact sub-section
         f = self._ttk.LabelFrame(parent, text="Export Artifacts")
         f.pack(fill="both", expand=True, padx=4, pady=4)
         self._entry_row(f, "Source ID:", self._export_source_var)
@@ -1226,6 +1342,37 @@ class DesktopShell:
         msg = "Export marked failed." if r.ok else normalize_ui_error(r.message)
         self.set_status(msg); self.append_log(msg, "info" if r.ok else "error"); self.refresh()
 
+    def render_prompt_preview(self) -> None:
+        """Render a prompt template preview and show in the preview text area."""
+        r = self.session.render_prompt_preview(
+            self._export_template_id_var.get().strip(),
+            self._export_preview_source_type_var.get().strip(),
+            self._export_preview_source_id_var.get().strip(),
+        )
+        if r.ok:
+            text = (r.payload or {}).get("rendered_text", "")
+            msg = "Preview rendered."
+            if self._export_preview_text is not None:
+                self._export_preview_text.delete("1.0", "end")
+                self._export_preview_text.insert("1.0", text)
+        else:
+            msg = normalize_ui_error(r.message)
+        self.set_status(msg); self.append_log(msg, "info" if r.ok else "error")
+
+    def save_prompt_preview_as_export(self) -> None:
+        """Render prompt and save as export artifact."""
+        r = self.session.save_prompt_preview_as_export(
+            self._export_template_id_var.get().strip(),
+            self._export_preview_source_type_var.get().strip(),
+            self._export_preview_source_id_var.get().strip(),
+        )
+        if r.ok:
+            aid = ((r.payload or {}).get("artifact") or {}).get("artifact_id", "")
+            msg = f"Saved as export: {aid[:16]}"
+        else:
+            msg = normalize_ui_error(r.message)
+        self.set_status(msg); self.append_log(msg, "info" if r.ok else "error"); self.refresh()
+
     # ------------------------------------------------------------------
     # Plugin
     # ------------------------------------------------------------------
@@ -1531,6 +1678,483 @@ class DesktopShell:
             "has_project_bar": True,
             "shortcuts": dict(SHORTCUTS),
         }
+
+
+    # ------------------------------------------------------------------
+    # TASK-000056: Asset Browser public methods
+    # ------------------------------------------------------------------
+
+    def load_selected_asset_detail(self) -> None:
+        """Load detail fields for selected asset into form."""
+        if not self._selected_asset_id:
+            msg = "No asset selected."; self.set_status(msg); self.append_log(msg, "warn"); return
+        r = self.session.get_asset_detail(self._selected_asset_id)
+        if not r.ok:
+            msg = normalize_ui_error(r.message); self.set_status(msg); self.append_log(msg, "error"); return
+        p = r.payload or {}
+        self._asset_detail_type_var.set(p.get("asset_type", ""))
+        self._asset_detail_location_var.set(p.get("location", ""))
+        self._asset_desc_var.set(p.get("description", ""))
+        tags = p.get("tags", [])
+        self._asset_tags_var.set(", ".join(tags) if isinstance(tags, list) else str(tags))
+        self._asset_notes_var.set(p.get("notes", ""))
+        self._asset_form_loaded = True
+        self.append_log(f"Asset detail loaded: {self._selected_asset_id[:16]}")
+
+    def apply_asset_metadata_changes(self) -> None:
+        """Apply asset detail form to selected asset."""
+        if not self._selected_asset_id:
+            msg = "No asset selected."; self.set_status(msg); self.append_log(msg, "warn"); return
+        fields = {
+            "asset_type": self._asset_detail_type_var.get(),
+            "location": self._asset_detail_location_var.get(),
+            "description": self._asset_desc_var.get(),
+            "tags": self._asset_tags_var.get(),
+            "notes": self._asset_notes_var.get(),
+        }
+        r = self.session.update_asset_metadata(self._selected_asset_id, fields)
+        msg = "Asset metadata updated." if r.ok else normalize_ui_error(r.message)
+        self.set_status(msg); self.append_log(msg, "info" if r.ok else "error")
+        if r.ok:
+            self.refresh()
+
+    def clear_asset_detail_form(self) -> None:
+        """Clear asset detail form fields without deleting record."""
+        for var in (self._asset_detail_type_var, self._asset_detail_location_var,
+                    self._asset_desc_var, self._asset_tags_var, self._asset_notes_var):
+            var.set("")
+        self._asset_form_loaded = False
+
+    # ------------------------------------------------------------------
+    # TASK-000057: Asset Linking public methods
+    # ------------------------------------------------------------------
+
+    def link_asset_to_scene(self) -> None:
+        if not self._selected_asset_id:
+            msg = "No asset selected."; self.set_status(msg); self.append_log(msg, "warn"); return
+        target = self._asset_link_id_var.get().strip()
+        r = self.session.link_asset_to_scene(self._selected_asset_id, target)
+        msg = "Asset linked to scene." if r.ok else normalize_ui_error(r.message)
+        self.set_status(msg); self.append_log(msg, "info" if r.ok else "error")
+
+    def link_asset_to_shot(self) -> None:
+        if not self._selected_asset_id:
+            msg = "No asset selected."; self.set_status(msg); self.append_log(msg, "warn"); return
+        target = self._asset_link_id_var.get().strip()
+        r = self.session.link_asset_to_shot(self._selected_asset_id, target)
+        msg = "Asset linked to shot." if r.ok else normalize_ui_error(r.message)
+        self.set_status(msg); self.append_log(msg, "info" if r.ok else "error")
+
+    def link_asset_to_character(self) -> None:
+        if not self._selected_asset_id:
+            msg = "No asset selected."; self.set_status(msg); self.append_log(msg, "warn"); return
+        target = self._asset_link_id_var.get().strip()
+        r = self.session.link_asset_to_character(self._selected_asset_id, target)
+        msg = "Asset linked to character." if r.ok else normalize_ui_error(r.message)
+        self.set_status(msg); self.append_log(msg, "info" if r.ok else "error")
+
+    def unlink_asset_from_scene(self) -> None:
+        if not self._selected_asset_id:
+            msg = "No asset selected."; self.set_status(msg); self.append_log(msg, "warn"); return
+        target = self._asset_link_id_var.get().strip()
+        r = self.session.unlink_asset_from_scene(self._selected_asset_id, target)
+        msg = "Asset unlinked from scene." if r.ok else normalize_ui_error(r.message)
+        self.set_status(msg); self.append_log(msg, "info" if r.ok else "error")
+
+    def get_asset_inspector_snapshot(self) -> dict:
+        """Return JSON-serializable asset inspector state."""
+        return {
+            "selected_asset_id": self._selected_asset_id,
+            "asset_form_loaded": self._asset_form_loaded,
+            "asset_dirty": self._asset_dirty,
+        }
+
+    # ------------------------------------------------------------------
+    # TASK-000058: Character Detail public methods
+    # ------------------------------------------------------------------
+
+    def load_selected_character_detail(self) -> None:
+        """Load character detail fields into form."""
+        if not self._selected_character_id:
+            msg = "No character selected."; self.set_status(msg); self.append_log(msg, "warn"); return
+        r = self.session.get_character_detail(self._selected_character_id)
+        if not r.ok:
+            msg = normalize_ui_error(r.message); self.set_status(msg); self.append_log(msg, "error"); return
+        p = r.payload or {}
+        self._char_role_var.set(p.get("role", ""))
+        self._char_personality_var.set(p.get("personality", ""))
+        self._char_motivation_var.set(p.get("motivation", ""))
+        self._char_detail_notes_var.set(p.get("notes", ""))
+        self._character_form_loaded = True
+        self.append_log(f"Character detail loaded: {self._selected_character_id[:16]}")
+
+    def apply_character_detail_changes(self) -> None:
+        """Apply character detail form to selected character."""
+        if not self._selected_character_id:
+            msg = "No character selected."; self.set_status(msg); self.append_log(msg, "warn"); return
+        fields = {
+            "role": self._char_role_var.get(),
+            "personality": self._char_personality_var.get(),
+            "motivation": self._char_motivation_var.get(),
+            "notes": self._char_detail_notes_var.get(),
+        }
+        r = self.session.update_character_detail(self._selected_character_id, fields)
+        msg = "Character detail updated." if r.ok else normalize_ui_error(r.message)
+        self.set_status(msg); self.append_log(msg, "info" if r.ok else "error")
+        if r.ok:
+            self.refresh()
+
+    # ------------------------------------------------------------------
+    # TASK-000059: Character Reference Workflow public methods
+    # ------------------------------------------------------------------
+
+    def add_character_structured_reference(self) -> None:
+        """Add a typed reference to the selected character."""
+        if not self._selected_character_id:
+            msg = "No character selected."; self.set_status(msg); self.append_log(msg, "warn"); return
+        asset_id = self._char_ref_asset_var.get().strip()
+        ref_type = self._char_ref_type_var.get().strip() or "other"
+        is_primary = self._char_ref_is_primary_var.get() == "1"
+        notes = self._char_ref_notes_var.get().strip()
+        r = self.session.add_character_reference(
+            self._selected_character_id, asset_id, ref_type, is_primary, notes)
+        msg = "Character reference added." if r.ok else normalize_ui_error(r.message)
+        self.set_status(msg); self.append_log(msg, "info" if r.ok else "error")
+
+    def remove_character_structured_reference(self) -> None:
+        """Remove a typed reference from the selected character."""
+        if not self._selected_character_id:
+            msg = "No character selected."; self.set_status(msg); self.append_log(msg, "warn"); return
+        asset_id = self._char_ref_asset_var.get().strip()
+        ref_type = self._char_ref_type_var.get().strip() or None
+        r = self.session.remove_character_reference(
+            self._selected_character_id, asset_id, ref_type)
+        msg = "Character reference removed." if r.ok else normalize_ui_error(r.message)
+        self.set_status(msg); self.append_log(msg, "info" if r.ok else "error")
+
+    def mark_primary_character_reference(self) -> None:
+        """Mark an asset as primary reference for the selected character."""
+        if not self._selected_character_id:
+            msg = "No character selected."; self.set_status(msg); self.append_log(msg, "warn"); return
+        asset_id = self._char_ref_asset_var.get().strip()
+        ref_type = self._char_ref_type_var.get().strip() or "face"
+        r = self.session.mark_primary_character_reference(
+            self._selected_character_id, asset_id, ref_type)
+        msg = "Primary reference marked." if r.ok else normalize_ui_error(r.message)
+        self.set_status(msg); self.append_log(msg, "info" if r.ok else "error")
+
+    # ------------------------------------------------------------------
+    # TASK-000060: AFL Expanded Validation public methods
+    # ------------------------------------------------------------------
+
+    def validate_current_project_structure(self) -> None:
+        """Validate the current loaded project structure."""
+        r = self.session.validate_current_project_structure()
+        if r.ok:
+            p = r.payload or {}
+            msg = (f"Project validated: status={p.get('status', '?')} "
+                   f"issues={p.get('issue_count', 0)}")
+        else:
+            msg = normalize_ui_error(r.message)
+        self.set_status(msg); self.append_log(msg, "info" if r.ok else "error"); self.refresh()
+
+
+    # ------------------------------------------------------------------
+    # Providers tab (TASK-000077)
+    # ------------------------------------------------------------------
+
+    def _build_providers_tab(self, parent: Any) -> None:
+        """Build the Providers tab UI."""
+        pf = self._ttk.LabelFrame(parent, text="Provider Registry")
+        pf.pack(fill="x", padx=4, pady=2)
+        self._btn_row(pf, [
+            ("Refresh Providers", self.refresh_providers),
+            ("Enable Provider", self.enable_provider),
+            ("Disable Provider", self.disable_provider),
+        ])
+        self._provider_listbox = self._listbox_with_sb(pf, height=6)
+
+        drf = self._ttk.LabelFrame(parent, text="Dry Run (TASK-000079)")
+        drf.pack(fill="x", padx=4, pady=2)
+        self._entry_row(drf, "Provider ID:", self._provider_dry_run_provider_var)
+        self._entry_row(drf, "Prompt Text:", self._provider_dry_run_prompt_var)
+        self._btn_row(drf, [
+            ("Execute Dry Run", self.execute_provider_dry_run),
+        ])
+        if self._tk is not None:
+            self._provider_result_text = self._tk.Text(drf, height=4, wrap="word")
+            self._provider_result_text.pack(fill="x", padx=4, pady=2)
+
+        lf = self._ttk.LabelFrame(parent, text="Provider Logs (TASK-000080)")
+        lf.pack(fill="both", expand=True, padx=4, pady=2)
+        self._btn_row(lf, [
+            ("Refresh Logs", self.refresh_provider_logs),
+            ("Clear Logs", self.clear_provider_logs),
+        ])
+        self._provider_log_listbox = self._listbox_with_sb(lf, height=5)
+
+    def refresh_providers(self) -> None:
+        r = self.session.list_providers()
+        if r.ok:
+            providers = (r.payload or {}).get("providers", [])
+            if self._provider_listbox is not None:
+                self._provider_listbox.delete(0, "end")
+                self._provider_index_map = []
+                for p in providers:
+                    label = f"[{p['state']}] {p['name']} ({p['provider_type']})"
+                    self._provider_listbox.insert("end", label)
+                    self._provider_index_map.append(p["provider_id"])
+            msg = f"Providers: {len(providers)}"
+        else:
+            msg = normalize_ui_error(r.message)
+        self.set_status(msg); self.append_log(msg, "info" if r.ok else "error")
+
+    def enable_provider(self) -> None:
+        pid = self._provider_id_var.get().strip() or "dry-run-local"
+        r = self.session.enable_provider(pid)
+        msg = f"Enabled: {pid}" if r.ok else normalize_ui_error(r.message)
+        self.set_status(msg); self.append_log(msg, "info" if r.ok else "error")
+        self.refresh_providers()
+
+    def disable_provider(self) -> None:
+        pid = self._provider_id_var.get().strip() or "dry-run-local"
+        r = self.session.disable_provider(pid)
+        msg = f"Disabled: {pid}" if r.ok else normalize_ui_error(r.message)
+        self.set_status(msg); self.append_log(msg, "info" if r.ok else "error")
+        self.refresh_providers()
+
+    def execute_provider_dry_run(self) -> None:
+        r = self.session.execute_provider_dry_run(
+            self._provider_dry_run_provider_var.get().strip(),
+            source_type="",
+            source_id="",
+            prompt_text=self._provider_dry_run_prompt_var.get().strip(),
+        )
+        if r.ok:
+            output = (r.payload or {}).get("output_text", "")
+            msg = "Dry run complete."
+            if self._provider_result_text is not None:
+                self._provider_result_text.delete("1.0", "end")
+                self._provider_result_text.insert("1.0", output)
+        else:
+            msg = normalize_ui_error(r.message)
+        self.set_status(msg); self.append_log(msg, "info" if r.ok else "error")
+
+    def refresh_provider_logs(self) -> None:
+        r = self.session.list_provider_logs()
+        if r.ok:
+            logs = (r.payload or {}).get("logs", [])
+            if hasattr(self, "_provider_log_listbox") and self._provider_log_listbox is not None:
+                self._provider_log_listbox.delete(0, "end")
+                for lg in logs:
+                    label = f"[{lg.get('status','')}] {lg.get('event_type','')} — {lg.get('prompt_preview','')[:40]}"
+                    self._provider_log_listbox.insert("end", label)
+            msg = f"Logs: {len(logs)}"
+        else:
+            msg = normalize_ui_error(r.message)
+        self.set_status(msg); self.append_log(msg, "info" if r.ok else "error")
+
+    def clear_provider_logs(self) -> None:
+        r = self.session.clear_provider_logs()
+        msg = "Provider logs cleared." if r.ok else normalize_ui_error(r.message)
+        self.set_status(msg); self.append_log(msg, "info" if r.ok else "error")
+        self.refresh_provider_logs()
+
+
+    # ------------------------------------------------------------------
+    # Prompt Execution Queue UI (TASK-000081)
+    # ------------------------------------------------------------------
+
+    def _build_prompt_queue_section(self, parent: Any) -> None:
+        """Add prompt execution queue controls to a parent frame."""
+        qf = self._ttk.LabelFrame(parent, text="Prompt Execution Queue (Dry-Run)")
+        qf.pack(fill="x", padx=4, pady=2)
+        self._entry_row(qf, "Source Type:", self._queue_source_type_var)
+        self._entry_row(qf, "Source ID:", self._queue_source_id_var)
+        self._entry_row(qf, "Prompt Text:", self._queue_prompt_var)
+        self._btn_row(qf, [
+            ("Enqueue Prompt (Dry-Run)", self.enqueue_prompt_execution),
+            ("Run Next Dry-Run", self.run_next_prompt_execution_dry_run),
+            ("Cancel Selected", self.cancel_selected_queue_item),
+            ("Refresh Queue", self.refresh_prompt_queue),
+        ])
+        self._queue_listbox = self._listbox_with_sb(qf, height=5)
+
+    def enqueue_prompt_execution(self) -> None:
+        r = self.session.enqueue_prompt_execution(
+            provider_id=self._provider_dry_run_provider_var.get().strip() or "dry-run-local",
+            source_type=self._queue_source_type_var.get().strip(),
+            source_id=self._queue_source_id_var.get().strip(),
+            prompt_text=self._queue_prompt_var.get().strip(),
+        )
+        msg = "Prompt enqueued." if r.ok else normalize_ui_error(r.message)
+        self.set_status(msg); self.append_log(msg, "info" if r.ok else "error")
+        self.refresh_prompt_queue()
+
+    def run_next_prompt_execution_dry_run(self) -> None:
+        r = self.session.run_next_prompt_execution_dry_run()
+        if r.ok:
+            ran = (r.payload or {}).get("ran", False)
+            msg = "Dry-run complete." if ran else "Queue empty."
+        else:
+            msg = normalize_ui_error(r.message)
+        self.set_status(msg); self.append_log(msg, "info" if r.ok else "error")
+        self.refresh_prompt_queue()
+
+    def cancel_selected_queue_item(self) -> None:
+        if not self._queue_index_map:
+            self.set_status("No item selected.")
+            return
+        sel_idx = 0
+        if self._queue_listbox is not None:
+            sel = self._queue_listbox.curselection()
+            if sel:
+                sel_idx = sel[0]
+        qid = self._queue_index_map[sel_idx] if sel_idx < len(self._queue_index_map) else ""
+        if not qid:
+            self.set_status("No item selected.")
+            return
+        r = self.session.cancel_prompt_execution(qid)
+        msg = "Item cancelled." if r.ok else normalize_ui_error(r.message)
+        self.set_status(msg); self.append_log(msg, "info" if r.ok else "error")
+        self.refresh_prompt_queue()
+
+    def refresh_prompt_queue(self) -> None:
+        r = self.session.list_prompt_execution_queue()
+        if r.ok:
+            items = (r.payload or {}).get("items", [])
+            if self._queue_listbox is not None:
+                self._queue_listbox.delete(0, "end")
+                self._queue_index_map = []
+                for item in items:
+                    label = f"[{item['status']}] {item['source_type']}/{item['source_id']} — {item['provider_id']}"
+                    self._queue_listbox.insert("end", label)
+                    self._queue_index_map.append(item["queue_item_id"])
+            status = (r.payload or {}).get("status", {})
+            msg = f"Queue: {status.get('total',0)} total, {status.get('queued',0)} queued"
+        else:
+            msg = normalize_ui_error(r.message)
+        self.set_status(msg); self.append_log(msg, "info" if r.ok else "error")
+
+
+    # ------------------------------------------------------------------
+    # Batch Prompt Export UI (TASK-000082)
+    # ------------------------------------------------------------------
+
+    def _build_batch_export_section(self, parent: Any) -> None:
+        """Add batch prompt export controls to a parent frame."""
+        bf = self._ttk.LabelFrame(parent, text="Batch Prompt Export (Local)")
+        bf.pack(fill="x", padx=4, pady=2)
+        self._entry_row(bf, "Source Type:", self._batch_source_type_var)
+        self._entry_row(bf, "Source IDs (csv):", self._batch_source_ids_var)
+        self._entry_row(bf, "Template ID:", self._batch_template_id_var)
+        self._entry_row(bf, "Profile ID:", self._batch_profile_id_var)
+        self._btn_row(bf, [("Create Batch Export", self.create_batch_prompt_export)])
+        if self._tk is not None:
+            lbl = self._ttk.Label(bf, textvariable=self._batch_result_var)
+            lbl.pack(fill="x", padx=4)
+
+    def create_batch_prompt_export(self) -> None:
+        r = self.session.create_batch_prompt_export(
+            source_type=self._batch_source_type_var.get().strip(),
+            source_ids=self._batch_source_ids_var.get().strip(),
+            template_id=self._batch_template_id_var.get().strip(),
+            profile_id=self._batch_profile_id_var.get().strip(),
+        )
+        if r.ok:
+            p = r.payload or {}
+            msg = f"Batch {p.get('status','?')}: {p.get('success_count',0)}/{p.get('total_count',0)} ok"
+        else:
+            msg = normalize_ui_error(r.message)
+        self._batch_result_var.set(msg)
+        self.set_status(msg); self.append_log(msg, "info" if r.ok else "error")
+
+
+    # ------------------------------------------------------------------
+    # Prompt Run History UI (TASK-000083)
+    # ------------------------------------------------------------------
+
+    def _build_run_history_section(self, parent: Any) -> None:
+        hf = self._ttk.LabelFrame(parent, text="Prompt Run History")
+        hf.pack(fill="both", expand=True, padx=4, pady=2)
+        self._btn_row(hf, [
+            ("Refresh History", self.refresh_run_history),
+            ("Clear History", self.clear_run_history),
+        ])
+        self._run_history_listbox = self._listbox_with_sb(hf, height=6)
+
+    def refresh_run_history(self) -> None:
+        r = self.session.list_prompt_run_history()
+        if r.ok:
+            records = (r.payload or {}).get("history", [])
+            if self._run_history_listbox is not None:
+                self._run_history_listbox.delete(0, "end")
+                for rec in records:
+                    label = (f"[{rec.get('run_type','')}][{rec.get('status','')}] "
+                             f"{rec.get('source_type','')}/{rec.get('source_id','')} "
+                             f"— {rec.get('prompt_preview','')[:30]}")
+                    self._run_history_listbox.insert("end", label)
+            msg = f"History: {(r.payload or {}).get('count', 0)} records"
+        else:
+            msg = normalize_ui_error(r.message)
+        self.set_status(msg); self.append_log(msg, "info" if r.ok else "error")
+
+    def clear_run_history(self) -> None:
+        r = self.session.clear_prompt_run_history()
+        msg = "History cleared." if r.ok else normalize_ui_error(r.message)
+        self.set_status(msg); self.append_log(msg, "info" if r.ok else "error")
+        self.refresh_run_history()
+
+
+    # ------------------------------------------------------------------
+    # Plugin Manifest UI (TASK-000086)
+    # ------------------------------------------------------------------
+
+    def _build_manifest_section(self, parent: Any) -> None:
+        mf = self._ttk.LabelFrame(parent, text="Plugin Manifest Validation")
+        mf.pack(fill="x", padx=4, pady=2)
+        if self._tk is not None:
+            self._manifest_text = self._tk.Text(mf, height=5, wrap="word")
+            self._manifest_text.pack(fill="x", padx=4, pady=2)
+        self._btn_row(mf, [
+            ("Validate Manifest", self.validate_plugin_manifest),
+            ("Register Manifest", self.register_plugin_manifest),
+            ("List Manifests", self.list_plugin_manifests),
+        ])
+        if self._tk is not None:
+            lbl = self._ttk.Label(mf, textvariable=self._manifest_result_var, wraplength=500)
+            lbl.pack(fill="x", padx=4)
+
+    def validate_plugin_manifest(self) -> None:
+        text = ""
+        if self._manifest_text is not None:
+            text = self._manifest_text.get("1.0", "end").strip()
+        r = self.session.validate_plugin_manifest(text or "{}")
+        if r.ok:
+            p = r.payload or {}
+            msg = f"Validation: {p.get('status','?')} ({p.get('issue_count',0)} issues)"
+        else:
+            msg = normalize_ui_error(r.message)
+        self._manifest_result_var.set(msg)
+        self.set_status(msg); self.append_log(msg, "info" if r.ok else "error")
+
+    def register_plugin_manifest(self) -> None:
+        text = ""
+        if self._manifest_text is not None:
+            text = self._manifest_text.get("1.0", "end").strip()
+        r = self.session.register_plugin_manifest(text or "{}")
+        msg = f"Registered: {(r.payload or {}).get('plugin_id','?')}" if r.ok else normalize_ui_error(r.message)
+        self._manifest_result_var.set(msg)
+        self.set_status(msg); self.append_log(msg, "info" if r.ok else "error")
+
+    def list_plugin_manifests(self) -> None:
+        r = self.session.list_plugin_manifests()
+        if r.ok:
+            msg = f"Manifests: {(r.payload or {}).get('count', 0)}"
+        else:
+            msg = normalize_ui_error(r.message)
+        self._manifest_result_var.set(msg)
+        self.set_status(msg); self.append_log(msg, "info" if r.ok else "error")
 
     def run(self) -> None:
         self._root.mainloop()

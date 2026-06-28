@@ -320,6 +320,48 @@ class AssetViewModel:
 
 
 @dataclass(frozen=True)
+class AssetDetailViewModel:
+    """Full asset detail for inspector/editor."""
+
+    asset_id: str
+    project_id: str
+    asset_type: str
+    display_name: str
+    location: str
+    description: str
+    tags: tuple[str, ...]
+    usage_count: int
+    notes: str
+    status: str  # ← record.state
+    owner_ref: str | None
+    created_at: str
+    updated_at: str  # ← record.modified_at
+
+    @classmethod
+    def from_record(cls, record: Any) -> "AssetDetailViewModel":
+        return cls(
+            asset_id=record.asset_id,
+            project_id=record.project_id,
+            asset_type=record.asset_type,
+            display_name=record.display_name,
+            location=record.location,
+            description=getattr(record, "description", ""),
+            tags=tuple(getattr(record, "tags", ())),
+            usage_count=int(getattr(record, "usage_count", 0)),
+            notes=getattr(record, "notes", ""),
+            status=record.state,
+            owner_ref=record.owner_ref,
+            created_at=record.created_at,
+            updated_at=record.modified_at,
+        )
+
+    def to_dict(self) -> dict[str, Any]:
+        d = asdict(self)
+        d["tags"] = list(d["tags"])
+        return d
+
+
+@dataclass(frozen=True)
 class CharacterViewModel:
     """Minimal character representation for UI display."""
 
@@ -344,6 +386,59 @@ class CharacterViewModel:
     def to_dict(self) -> dict[str, Any]:
         d = asdict(self)
         d["reference_asset_ids"] = list(d["reference_asset_ids"])
+        return d
+
+
+@dataclass(frozen=True)
+class CharacterDetailViewModel:
+    """Full character detail for inspector/editor (TASK-000058/059)."""
+
+    character_id: str
+    project_id: str
+    display_name: str
+    description: str
+    role: str
+    visual_description: str
+    personality: str
+    motivation: str
+    conflict: str
+    arc_notes: str
+    notes: str
+    status: str  # ← record.state
+    reference_asset_ids: tuple[str, ...]
+    reference_assets: tuple[dict, ...]  # serialized CharacterReference dicts
+    created_at: str
+    updated_at: str  # ← record.modified_at
+
+    @classmethod
+    def from_record(cls, record: Any) -> "CharacterDetailViewModel":
+        ref_assets = tuple(
+            r.to_dict() if hasattr(r, "to_dict") else dict(r)
+            for r in getattr(record, "reference_assets", ())
+        )
+        return cls(
+            character_id=record.character_id,
+            project_id=record.project_id,
+            display_name=record.display_name,
+            description=getattr(record, "description", ""),
+            role=getattr(record, "role", ""),
+            visual_description=getattr(record, "visual_description", ""),
+            personality=getattr(record, "personality", ""),
+            motivation=getattr(record, "motivation", ""),
+            conflict=getattr(record, "conflict", ""),
+            arc_notes=getattr(record, "arc_notes", ""),
+            notes=getattr(record, "notes", ""),
+            status=record.state,
+            reference_asset_ids=tuple(record.reference_asset_ids),
+            reference_assets=ref_assets,
+            created_at=record.created_at,
+            updated_at=record.modified_at,
+        )
+
+    def to_dict(self) -> dict[str, Any]:
+        d = asdict(self)
+        d["reference_asset_ids"] = list(d["reference_asset_ids"])
+        d["reference_assets"] = list(d["reference_assets"])
         return d
 
 
@@ -419,10 +514,10 @@ class ExportArtifactViewModel:
     def from_record(cls, record: Any) -> "ExportArtifactViewModel":
         return cls(
             artifact_id=record.artifact_id,
-            source_id=record.source_id,
+            source_id=getattr(record, "source_id", ""),
             artifact_type=record.artifact_type,
-            status=record.status,
-            provider_target=record.provider_target,
+            status=getattr(record, "status", getattr(record, "state", "")),
+            provider_target=getattr(record, "provider_target", None),
         )
 
     def to_dict(self) -> dict[str, Any]:
@@ -431,7 +526,7 @@ class ExportArtifactViewModel:
 
 @dataclass(frozen=True)
 class PluginViewModel:
-    """Minimal plugin metadata representation for UI display."""
+    """Minimal plugin representation for UI display."""
 
     plugin_id: str
     name: str
@@ -446,9 +541,9 @@ class PluginViewModel:
             plugin_id=record.plugin_id,
             name=record.name,
             version=record.version,
-            state=record.state,
-            capabilities=tuple(record.capabilities),
-            permissions=tuple(record.permissions),
+            state=getattr(record, "state", "registered"),
+            capabilities=tuple(getattr(record, "capabilities", ())),
+            permissions=tuple(getattr(record, "permissions", ())),
         )
 
     def to_dict(self) -> dict[str, Any]:
@@ -456,3 +551,152 @@ class PluginViewModel:
         d["capabilities"] = list(d["capabilities"])
         d["permissions"] = list(d["permissions"])
         return d
+
+@dataclass(frozen=True)
+class ProviderCapabilityViewModel:
+    """Minimal provider capability for UI display."""
+
+    name: str
+    description: str
+
+    @classmethod
+    def from_record(cls, record: Any) -> "ProviderCapabilityViewModel":
+        return cls(name=record.name, description=record.description)
+
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+
+@dataclass(frozen=True)
+class ProviderViewModel:
+    """Minimal provider representation for UI display."""
+
+    provider_id: str
+    name: str
+    version: str
+    provider_type: str
+    state: str
+    requires_api_key: bool
+    supports_dry_run: bool
+    description: str
+    error_message: str
+    capabilities: tuple["ProviderCapabilityViewModel", ...]
+
+    @classmethod
+    def from_record(cls, record: Any) -> "ProviderViewModel":
+        caps = tuple(
+            ProviderCapabilityViewModel.from_record(c)
+            for c in getattr(record, "capabilities", ())
+        )
+        return cls(
+            provider_id=record.provider_id,
+            name=record.name,
+            version=record.version,
+            provider_type=record.provider_type,
+            state=record.state,
+            requires_api_key=getattr(record, "requires_api_key", False),
+            supports_dry_run=getattr(record, "supports_dry_run", True),
+            description=getattr(record, "description", ""),
+            error_message=getattr(record, "error_message", ""),
+            capabilities=caps,
+        )
+
+    def to_dict(self) -> dict[str, Any]:
+        d = asdict(self)
+        d["capabilities"] = [c for c in d["capabilities"]]
+        return d
+
+@dataclass(frozen=True)
+class PromptExecutionQueueItemViewModel:
+    """Minimal queue item representation for UI display."""
+
+    queue_item_id: str
+    request_id: str
+    provider_id: str
+    source_type: str
+    source_id: str
+    status: str
+    priority: int
+    attempt_count: int
+    error_message: str
+
+    @classmethod
+    def from_record(cls, record: Any) -> "PromptExecutionQueueItemViewModel":
+        return cls(
+            queue_item_id=record.queue_item_id,
+            request_id=record.request_id,
+            provider_id=record.provider_id,
+            source_type=record.source_type,
+            source_id=record.source_id,
+            status=record.status,
+            priority=record.priority,
+            attempt_count=record.attempt_count,
+            error_message=record.error_message,
+        )
+
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+
+@dataclass(frozen=True)
+class ProviderConfigViewModel:
+    """View model for provider config UI state.
+
+    Never includes real secret values.
+    real_execution_allowed is always False in v0.4.
+    """
+
+    provider_id: str
+    enabled: bool = False
+    configured: bool = False
+    config_status: str = "not_configured"
+    display_name: str = ""
+    provider_type: str = "other"
+    requires_api_key: bool = False
+    supports_dry_run: bool = True
+    real_execution_allowed: bool = False
+    secret_storage_status: str = "not_configured"
+    last_error: str = ""
+    notes: str = ""
+    updated_at: str = ""
+
+    def to_dict(self) -> dict[str, Any]:
+        """Serialize to dict — never includes secret fields."""
+        return {
+            "provider_id": self.provider_id,
+            "enabled": self.enabled,
+            "configured": self.configured,
+            "config_status": self.config_status,
+            "display_name": self.display_name,
+            "provider_type": self.provider_type,
+            "requires_api_key": self.requires_api_key,
+            "supports_dry_run": self.supports_dry_run,
+            "real_execution_allowed": self.real_execution_allowed,
+            "secret_storage_status": self.secret_storage_status,
+            "last_error": self.last_error,
+            "notes": self.notes,
+            "updated_at": self.updated_at,
+        }
+
+    @classmethod
+    def from_record(cls, record: Any) -> "ProviderConfigViewModel":
+        """Build from a provider config metadata dict or similar record."""
+        if isinstance(record, dict):
+            d = record
+        else:
+            d = record.to_dict() if hasattr(record, "to_dict") else {}
+        return cls(
+            provider_id=str(d.get("provider_id", "")),
+            enabled=bool(d.get("enabled", False)),
+            configured=bool(d.get("configured", False)),
+            config_status=str(d.get("config_status", "not_configured")),
+            display_name=str(d.get("display_name", d.get("provider_id", ""))),
+            provider_type=str(d.get("provider_type", "other")),
+            requires_api_key=bool(d.get("requires_api_key", False)),
+            supports_dry_run=bool(d.get("supports_dry_run", True)),
+            real_execution_allowed=False,  # always False in v0.4
+            secret_storage_status=str(d.get("secret_storage_status", "not_configured")),
+            last_error=str(d.get("last_error", "")),
+            notes=str(d.get("notes", "")),
+            updated_at=str(d.get("updated_at", "")),
+        )

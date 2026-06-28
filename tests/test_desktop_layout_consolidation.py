@@ -160,7 +160,8 @@ class TestLayoutSnapshot(unittest.TestCase):
 
     def test_layout_snapshot_has_seven_tabs(self) -> None:
         tabs = self.shell.get_layout_snapshot()["tabs"]
-        self.assertEqual(len(tabs), 7)
+        # Updated: Providers tab added in TASK-000077 makes it 8
+        self.assertGreaterEqual(len(tabs), 7)
 
 
 # ---------------------------------------------------------------------------

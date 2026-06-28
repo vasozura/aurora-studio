@@ -6,7 +6,7 @@ from typing import Any
 
 CURRENT_BUNDLE_VERSION = "0.1.0"
 DEFAULT_BUNDLE_FILENAME = "aurora_bundle.json"
-_SUPPORTED_VERSIONS = frozenset({"0.1.0"})
+_SUPPORTED_VERSIONS = frozenset({"0.1.0", "0.2"})
 
 _COLLECTION_FIELDS = (
     "scenes",
@@ -17,6 +17,9 @@ _COLLECTION_FIELDS = (
     "afl_reports",
     "export_artifacts",
     "plugins",
+    "asset_links",
+    "prompt_templates",
+    "export_profiles",
 )
 
 
@@ -46,6 +49,9 @@ class ProjectBundle:
     afl_reports: tuple = ()
     export_artifacts: tuple = ()
     plugins: tuple = ()
+    asset_links: tuple = ()
+    prompt_templates: tuple = ()
+    export_profiles: tuple = ()
     created_at: str = ""
     modified_at: str = ""
 
@@ -64,6 +70,9 @@ class ProjectBundle:
             "afl_reports": list(self.afl_reports),
             "export_artifacts": list(self.export_artifacts),
             "plugins": list(self.plugins),
+            "asset_links": list(self.asset_links),
+            "prompt_templates": list(self.prompt_templates),
+            "export_profiles": list(self.export_profiles),
             "created_at": self.created_at,
             "modified_at": self.modified_at,
         }
@@ -134,6 +143,9 @@ class ProjectBundle:
             afl_reports=collections["afl_reports"],
             export_artifacts=collections["export_artifacts"],
             plugins=collections["plugins"],
+            asset_links=collections["asset_links"],
+            prompt_templates=collections["prompt_templates"],
+            export_profiles=collections["export_profiles"],
             created_at=str(data.get("created_at", "")),
             modified_at=str(data.get("modified_at", "")),
         )

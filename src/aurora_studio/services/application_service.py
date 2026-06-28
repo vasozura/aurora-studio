@@ -13,10 +13,18 @@ from aurora_studio.contracts.workspace import WorkspaceState
 from aurora_studio.core.errors import ValidationError
 from aurora_studio.modules.afl_engine import AFLEngine
 from aurora_studio.modules.asset_manager import AssetManager
+from aurora_studio.modules.asset_link_manager import AssetLinkManager
 from aurora_studio.modules.character_manager import CharacterManager
 from aurora_studio.modules.plugin_manager import PluginManager
 from aurora_studio.modules.project_manager import ProjectManager
 from aurora_studio.modules.prompt_export_manager import PromptExportManager
+from aurora_studio.modules.prompt_template_manager import PromptTemplateManager
+from aurora_studio.modules.export_profile_manager import ExportProfileManager
+from aurora_studio.modules.provider_registry import ProviderRegistry
+from aurora_studio.modules.provider_log import ProviderLog
+from aurora_studio.modules.prompt_execution_queue import PromptExecutionQueue
+from aurora_studio.modules.batch_prompt_export import BatchPromptExportManager
+from aurora_studio.modules.prompt_run_history import PromptRunHistory
 from aurora_studio.modules.scene_manager import SceneManager
 from aurora_studio.modules.shot_manager import ShotManager
 from aurora_studio.modules.timeline_manager import TimelineManager
@@ -45,6 +53,14 @@ class ApplicationService:
         prompt_export_manager: PromptExportManager | None = None,
         plugin_manager: PluginManager | None = None,
         project_store: LocalProjectStore | None = None,
+        asset_link_manager: AssetLinkManager | None = None,
+        prompt_template_manager: PromptTemplateManager | None = None,
+        export_profile_manager: ExportProfileManager | None = None,
+        provider_registry: ProviderRegistry | None = None,
+        provider_log: ProviderLog | None = None,
+        prompt_execution_queue: PromptExecutionQueue | None = None,
+        batch_prompt_export_manager: BatchPromptExportManager | None = None,
+        prompt_run_history: PromptRunHistory | None = None,
     ) -> None:
         self.project_manager = project_manager or ProjectManager()
         self.workspace = workspace or Workspace()
@@ -57,6 +73,14 @@ class ApplicationService:
         self.prompt_export_manager = prompt_export_manager or PromptExportManager()
         self.plugin_manager = plugin_manager or PluginManager()
         self.project_store = project_store or LocalProjectStore()
+        self.asset_link_manager = asset_link_manager or AssetLinkManager()
+        self.prompt_template_manager = prompt_template_manager or PromptTemplateManager()
+        self.export_profile_manager = export_profile_manager or ExportProfileManager()
+        self.provider_registry = provider_registry or ProviderRegistry()
+        self.provider_log = provider_log or ProviderLog()
+        self.prompt_execution_queue = prompt_execution_queue or PromptExecutionQueue()
+        self.batch_prompt_export_manager = batch_prompt_export_manager or BatchPromptExportManager()
+        self.prompt_run_history = prompt_run_history or PromptRunHistory()
         self._current_project_metadata: ProjectMetadata | None = None
 
     def create_project(self, path: str | Path, title: str) -> ProjectMetadata:
@@ -132,6 +156,9 @@ class ApplicationService:
             afl_engine=self.afl_engine,
             prompt_export_manager=self.prompt_export_manager,
             plugin_manager=self.plugin_manager,
+            asset_link_manager=self.asset_link_manager,
+            prompt_template_manager=self.prompt_template_manager,
+            export_profile_manager=self.export_profile_manager,
         )
         return self.project_store.save_bundle(path, bundle)
 
@@ -184,6 +211,9 @@ class ApplicationService:
             afl_engine=self.afl_engine,
             prompt_export_manager=self.prompt_export_manager,
             plugin_manager=self.plugin_manager,
+            asset_link_manager=self.asset_link_manager,
+            prompt_template_manager=self.prompt_template_manager,
+            export_profile_manager=self.export_profile_manager,
         )
 
         # Restore current project metadata from bundle if possible

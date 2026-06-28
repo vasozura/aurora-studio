@@ -53,6 +53,10 @@ class PromptExportManager:
         artifact_type: str,
         content: str,
         provider_target: str | None = None,
+        project_id: str = "",
+        source_type: str = "",
+        profile_id: str = "",
+        template_id: str = "",
     ) -> ExportArtifactRecord:
         """Register an export artifact in memory.
 
@@ -73,6 +77,10 @@ class PromptExportManager:
             provider_target=provider_target.strip() if provider_target is not None else None,
             created_at=now,
             modified_at=now,
+            project_id=str(project_id).strip(),
+            source_type=str(source_type).strip(),
+            profile_id=str(profile_id).strip(),
+            template_id=str(template_id).strip(),
         )
         self._artifacts[artifact.artifact_id] = artifact
         return artifact

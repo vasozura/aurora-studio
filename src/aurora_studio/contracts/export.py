@@ -43,6 +43,11 @@ class ExportArtifactRecord:
     provider_target: str | None = None
     created_at: str = ""
     modified_at: str = ""
+    # v0.2 fields (optional, backward compat)
+    project_id: str = ""
+    source_type: str = ""
+    profile_id: str = ""
+    template_id: str = ""
 
     def to_ref(self) -> ExportArtifactRef:
         """Return lightweight export artifact reference."""
@@ -81,4 +86,8 @@ class ExportArtifactRecord:
             provider_target=None if data.get("provider_target") is None else str(data["provider_target"]),
             created_at=str(data["created_at"]),
             modified_at=str(data["modified_at"]),
+            project_id=str(data.get("project_id", "")),
+            source_type=str(data.get("source_type", "")),
+            profile_id=str(data.get("profile_id", "")),
+            template_id=str(data.get("template_id", "")),
         )

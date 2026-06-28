@@ -142,6 +142,22 @@ def _build_parser() -> argparse.ArgumentParser:
 
     # smoke
     sub.add_parser(
+        "provider-smoke",
+        help="List providers and run dry-run smoke check.",
+    )
+    sub.add_parser(
+        "plugin-smoke",
+        help="Plugin foundation smoke: manifest, permissions, sandbox, stub.",
+    )
+
+    # provider-test
+    pt = sub.add_parser(
+        "provider-test",
+        help="Test provider connection — dry/mock only. No network.",
+    )
+    pt.add_argument("--provider", default="dry-run-local", help="Provider ID to test")
+    pt.add_argument("--mode", default="dry_run", choices=["dry_run","mock","blocked_real"], help="Test mode")
+    sub.add_parser(
         "smoke",
         help="Verify ApplicationService instantiates; print JSON health check.",
     )
@@ -183,15 +199,173 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     rb.add_argument("--path", required=True, help="Bundle file or project directory.")
 
+
+    # text-provider-mock
+    p_text_mock = sub.add_parser(
+        "text-provider-mock",
+        help="Execute text provider in mock mode — no network, no secret.",
+    )
+    p_text_mock.add_argument("--provider", default="openai-compatible",
+                             help="Provider ID (default: openai-compatible)")
+    p_text_mock.add_argument("--prompt", default="Test prompt",
+                             help="Prompt text")
+    p_text_mock.add_argument("--model", default="",
+                             help="Model ID (optional)")
+
+    # text-provider-readiness
+    p_text_ready = sub.add_parser(
+        "text-provider-readiness",
+        help="Report real text provider prerequisites — never executes real calls.",
+    )
+    p_text_ready.add_argument("--provider", default="openai-compatible",
+                              help="Provider ID (default: openai-compatible)")
+
     return parser
+
+
+
+def _cmd_plugin_smoke(_args: argparse.Namespace) -> None:
+    """Plugin foundation smoke: manifest validation + permission eval + sandbox + stub."""
+    import json
+    from aurora_studio.services.application_service import ApplicationService
+    from aurora_studio.ui.actions import UISession
+    from aurora_studio.modules.plugin_sandbox import PluginSandbox
+    from aurora_studio.modules.plugin_runtime_stub import PluginRuntimeStub, PluginExecutionRequest
+
+    svc = ApplicationService()
+    sess = UISession(svc)
+
+    # Manifest validation
+    manifest_data = json.dumps({
+        "plugin_id": "smoke-plugin-1",
+        "name": "Smoke Plugin",
+        "version": "1.0.0",
+        "manifest_version": "1.0",
+    })
+    r_validate = sess.validate_plugin_manifest(manifest_data)
+    r_register = sess.register_plugin_manifest(manifest_data)
+
+    # Permission eval
+    r_perms = sess.evaluate_plugin_permissions(["read_scenes", "secret_access", "execute_code"])
+
+    # Sandbox policy
+    r_sandbox = sess.get_plugin_sandbox_policy("smoke-plugin-1")
+
+    # Stub execution
+    r_stub = sess.execute_plugin_stub("smoke-plugin-1", action="run")
+
+    result = {
+        "ok": all([r_validate.ok, r_register.ok, r_perms.ok, r_sandbox.ok, r_stub.ok]),
+        "mode": "plugin-smoke",
+        "manifest_validation_status": (r_validate.payload or {}).get("status"),
+        "manifest_registered": (r_register.payload or {}).get("plugin_id"),
+        "permissions_evaluated": (r_perms.payload or {}).get("count", 0),
+        "sandbox_allowed": (r_sandbox.payload or {}).get("allowed"),
+        "stub_status": (r_stub.payload or {}).get("status"),
+    }
+    print(json.dumps(result, indent=2))
+
+def _cmd_provider_test(args: "argparse.Namespace") -> None:
+    """Provider test connection — dry/mock only. No network. No real API key."""
+    import json
+    from aurora_studio.ui.actions import UISession
+    provider_id = getattr(args, "provider", "dry-run-local") or "dry-run-local"
+    mode = getattr(args, "mode", "dry_run") or "dry_run"
+    sess = UISession()
+    result = sess.test_provider_connection(provider_id, mode)
+    # Build output: start with payload, then set top-level keys (avoids key collision)
+    output: dict = {}
+    if result.payload:
+        output.update(result.payload)
+    output["ok"] = result.ok
+    output["command"] = "provider-test"
+    output["requested_provider_id"] = provider_id
+    output["requested_mode"] = mode
+    if not result.ok:
+        output["message"] = result.message
+    print(json.dumps(output, indent=2))
+
+
+
+def _cmd_provider_smoke(_args: argparse.Namespace) -> None:
+    """List providers and execute a dry-run — no network, no SDK, no secrets."""
+    from aurora_studio.services.application_service import ApplicationService
+    from aurora_studio.ui.actions import UISession
+    sess = UISession(ApplicationService())
+
+    # List providers
+    r_list = sess.list_providers()
+    providers = r_list.payload.get("providers", []) if r_list.ok else []
+
+    # Dry-run execution
+    r_run = sess.execute_provider_dry_run(
+        provider_id="dry-run-local",
+        source_type="cli-smoke",
+        source_id="provider-smoke",
+        prompt_text="Provider smoke test: local dry-run only. No network. No SDK.",
+    )
+
+    # List logs
+    r_logs = sess.list_provider_logs()
+    logs = r_logs.payload.get("logs", []) if r_logs.ok else []
+
+    _out({
+        "ok": r_run.ok,
+        "mode": "provider-smoke",
+        "providers": [{"provider_id": p["provider_id"], "state": p["state"]} for p in providers],
+        "dry_run": r_run.payload if r_run.ok else {"error": r_run.message},
+        "log_count": len(logs),
+    })
 
 
 # ---------------------------------------------------------------------------
 # Entry point
 # ---------------------------------------------------------------------------
 
+
+def _cmd_text_provider_mock(args: "argparse.Namespace") -> None:
+    """Mock text provider execution — no network, no secret."""
+    import json
+    from aurora_studio.ui.actions import UISession
+    provider_id = getattr(args, "provider", "openai-compatible") or "openai-compatible"
+    prompt = getattr(args, "prompt", "Test prompt") or "Test prompt"
+    model_id = getattr(args, "model", "") or ""
+    sess = UISession()
+    result = sess.execute_text_provider_mock(provider_id, prompt, model_id=model_id)
+    output: dict = {}
+    if result.payload:
+        output.update(result.payload)
+    output["ok"] = result.ok
+    output["command"] = "text-provider-mock"
+    if not result.ok:
+        output["message"] = result.message
+    print(json.dumps(output, indent=2))
+
+
+def _cmd_text_provider_readiness(args: "argparse.Namespace") -> None:
+    """Evaluate real text provider readiness — reports prerequisites, never executes."""
+    import json
+    from aurora_studio.ui.actions import UISession
+    provider_id = getattr(args, "provider", "openai-compatible") or "openai-compatible"
+    sess = UISession()
+    result = sess.evaluate_text_provider_real_readiness(provider_id)
+    output: dict = {}
+    if result.payload:
+        output.update(result.payload)
+    output["ok"] = result.ok
+    output["command"] = "text-provider-readiness"
+    if not result.ok:
+        output["message"] = result.message
+    print(json.dumps(output, indent=2))
+
+
 _HANDLERS = {
     "smoke": _cmd_smoke,
+    "provider-smoke": _cmd_provider_smoke,
+    "plugin-smoke": _cmd_plugin_smoke,
+    "provider-test": _cmd_provider_test,
+    "text-provider-mock": _cmd_text_provider_mock,
+    "text-provider-readiness": _cmd_text_provider_readiness,
     "create-project": _cmd_create_project,
     "create-demo": _cmd_create_demo,
     "inspect-bundle": _cmd_inspect_bundle,

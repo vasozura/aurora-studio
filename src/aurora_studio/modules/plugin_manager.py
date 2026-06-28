@@ -32,6 +32,7 @@ class PluginManager:
     readiness = Readiness.NOT_READY
 
     def __init__(self) -> None:
+        self._manifests: dict = {}
         self._plugins: dict[str, PluginMetadata] = {}
 
     def get_readiness(self) -> Readiness:
@@ -135,3 +136,69 @@ class PluginManager:
             if not isinstance(item, _PluginMetadata):
                 raise ValidationError("replace_plugins requires PluginMetadata instances.")
         self._plugins = {r.plugin_id: r for r in records}
+    # ------------------------------------------------------------------
+    # TASK-000086: Manifest-based registration
+    # ------------------------------------------------------------------
+
+    def register_manifest(self, manifest: Any) -> Any:
+        """Register a PluginManifest. Never imports or executes code."""
+        from aurora_studio.modules.plugin_manifest_validator import PluginManifestValidator
+        from aurora_studio.contracts.plugin import PluginManifest
+        validator = PluginManifestValidator()
+        report = validator.validate_manifest(manifest)
+        if report.status == "fail":
+            raise ValidationError(
+                f"Invalid manifest: {[i.message for i in report.issues if i.level == 'ERROR']}"
+            )
+        self._manifests[manifest.plugin_id] = manifest
+        return manifest
+
+    def register_manifest_dict(self, data: dict) -> Any:
+        """Register a manifest from a raw dict. Never imports or executes code."""
+        from aurora_studio.modules.plugin_manifest_validator import PluginManifestValidator
+        from aurora_studio.contracts.plugin import PluginManifest
+        validator = PluginManifestValidator()
+        report = validator.validate_manifest_dict(data)
+        if report.status == "fail":
+            raise ValidationError(
+                f"Invalid manifest: {[i.message for i in report.issues if i.level == 'ERROR']}"
+            )
+        manifest = validator.normalize_manifest(data)
+        self._manifests[manifest.plugin_id] = manifest
+        return manifest
+
+    def validate_plugin_manifest(self, data: dict) -> Any:
+        """Validate manifest dict. Returns validation report."""
+        from aurora_studio.modules.plugin_manifest_validator import PluginManifestValidator
+        validator = PluginManifestValidator()
+        return validator.validate_manifest_dict(data)
+
+    def list_plugin_manifests(self) -> list:
+        """Return all registered plugin manifests."""
+        return list(self._manifests.values())
+
+    def get_plugin_manifest(self, plugin_id: str) -> Any:
+        """Return a registered manifest by plugin_id."""
+        if plugin_id not in self._manifests:
+            raise ValidationError(f"Plugin manifest not found: {plugin_id!r}")
+        return self._manifests[plugin_id]
+    # ------------------------------------------------------------------
+    # TASK-000089: Runtime stub execution (always blocked)
+    # ------------------------------------------------------------------
+
+    def execute_plugin_stub(self, plugin_id: str, action: str = "", payload: str = "") -> Any:
+        """Execute plugin via stub. Always returns blocked. Never runs code."""
+        from aurora_studio.modules.plugin_runtime_stub import (
+            PluginExecutionRequest,
+            PluginRuntimeStub,
+        )
+        import datetime
+        req = PluginExecutionRequest(
+            plugin_id=plugin_id,
+            action=action,
+            payload=payload,
+            requested_at=datetime.datetime.now(datetime.timezone.utc).isoformat(),
+        )
+        stub = PluginRuntimeStub()
+        return stub.execute(req)
+

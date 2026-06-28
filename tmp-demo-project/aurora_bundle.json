@@ -1,0 +1,145 @@
+{
+  "schema_version": "0.1.0",
+  "project_metadata": {
+    "project_id": "project-5d7d8551c34f4ba296e6f141b3dbe70c",
+    "title": "Demo Project",
+    "version": "0.1.0",
+    "created_at": "2026-06-28T01:09:48.817912+00:00",
+    "modified_at": "2026-06-28T01:09:48.817912+00:00"
+  },
+  "workspace_state": {
+    "active_project_id": "project-5d7d8551c34f4ba296e6f141b3dbe70c",
+    "active_scene_id": "scene-731305af61ac4bfdb9416390c62bc499",
+    "active_shot_id": "shot-328a6cc6e2514c43b821e89650df0e6e",
+    "active_timeline_id": null,
+    "selected_ref": null,
+    "mode": "default"
+  },
+  "scenes": [
+    {
+      "scene_id": "scene-731305af61ac4bfdb9416390c62bc499",
+      "project_id": "project-5d7d8551c34f4ba296e6f141b3dbe70c",
+      "title": "Opening Scene",
+      "purpose": "",
+      "state": "draft",
+      "created_at": "2026-06-28T01:09:48.820974+00:00",
+      "modified_at": "2026-06-28T01:09:48.820974+00:00",
+      "archived_at": null,
+      "description": "",
+      "location": "",
+      "time_of_day": "",
+      "mood": "",
+      "conflict": "",
+      "narrative_beat": "",
+      "notes": ""
+    }
+  ],
+  "shots": [
+    {
+      "shot_id": "shot-328a6cc6e2514c43b821e89650df0e6e",
+      "scene_id": "scene-731305af61ac4bfdb9416390c62bc499",
+      "title": "Opening Shot",
+      "purpose": "",
+      "order_index": 0,
+      "state": "draft",
+      "created_at": "2026-06-28T01:09:48.821026+00:00",
+      "modified_at": "2026-06-28T01:09:48.821026+00:00",
+      "archived_at": null,
+      "project_id": "",
+      "description": "",
+      "shot_type": "",
+      "camera_angle": "",
+      "camera_movement": "",
+      "framing": "",
+      "lens": "",
+      "duration_seconds": 0.0,
+      "emotion_target": "",
+      "visual_focus": "",
+      "notes": ""
+    }
+  ],
+  "timelines": [],
+  "assets": [],
+  "characters": [],
+  "afl_reports": [],
+  "export_artifacts": [],
+  "plugins": [],
+  "asset_links": [],
+  "prompt_templates": [],
+  "export_profiles": [
+    {
+      "profile_id": "default-profile-generic-image",
+      "project_id": "__default__",
+      "name": "Generic Image Prompt",
+      "target_type": "shot",
+      "template_id": "",
+      "template_text": "{{shot.title}}. {{shot.description}} Camera: {{shot.camera_movement}}. Framing: {{shot.framing}}. Emotion: {{shot.emotion_target}}.",
+      "description": "Generic image generation prompt for shots.",
+      "state": "active",
+      "created_at": "",
+      "updated_at": ""
+    },
+    {
+      "profile_id": "default-profile-cinematic-shot",
+      "project_id": "__default__",
+      "name": "Cinematic Shot Prompt",
+      "target_type": "shot",
+      "template_id": "",
+      "template_text": "Cinematic shot. {{shot.shot_type}} — {{shot.camera_angle}}. {{shot.camera_movement}} movement. Lens: {{shot.lens}}. Duration: {{shot.duration_seconds}}s. Focus: {{shot.visual_focus}}.",
+      "description": "Detailed cinematic shot description for video generation.",
+      "state": "active",
+      "created_at": "",
+      "updated_at": ""
+    },
+    {
+      "profile_id": "default-profile-video-generation",
+      "project_id": "__default__",
+      "name": "Video Generation Prompt",
+      "target_type": "scene",
+      "template_id": "",
+      "template_text": "Scene: {{scene.title}}. Location: {{scene.location}}. Mood: {{scene.mood}}. Time: {{scene.time_of_day}}. {{scene.description}}",
+      "description": "Scene-level prompt for video generation tools.",
+      "state": "active",
+      "created_at": "",
+      "updated_at": ""
+    },
+    {
+      "profile_id": "default-profile-storyboard",
+      "project_id": "__default__",
+      "name": "Storyboard Prompt",
+      "target_type": "scene",
+      "template_id": "",
+      "template_text": "Storyboard panel. Scene: {{scene.title}}. {{scene.description}} Setting: {{scene.location}} at {{scene.time_of_day}}. Mood: {{scene.mood}}.",
+      "description": "Storyboard illustration prompt for scenes.",
+      "state": "active",
+      "created_at": "",
+      "updated_at": ""
+    },
+    {
+      "profile_id": "default-profile-character-reference",
+      "project_id": "__default__",
+      "name": "Character Reference Prompt",
+      "target_type": "character",
+      "template_id": "",
+      "template_text": "Character reference sheet. Name: {{character.display_name}}. {{character.visual_description}} Role: {{character.role}}.",
+      "description": "Character reference image prompt.",
+      "state": "active",
+      "created_at": "",
+      "updated_at": ""
+    },
+    {
+      "profile_id": "default-profile-negative-prompt",
+      "project_id": "__default__",
+      "name": "Negative Prompt",
+      "target_type": "shot",
+      "template_id": "",
+      "template_text": "blurry, low quality, deformed, text, watermark, inconsistent lighting, overexposed, underexposed",
+      "description": "Standard negative prompt for image generation.",
+      "state": "active",
+      "created_at": "",
+      "updated_at": ""
+    }
+  ],
+  "created_at": "2026-06-28T01:09:48.821076+00:00",
+  "modified_at": "2026-06-28T01:09:48.821534+00:00"
+}
