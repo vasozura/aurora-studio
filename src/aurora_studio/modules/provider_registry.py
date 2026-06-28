@@ -43,16 +43,57 @@ _DRY_RUN_PROVIDER = ProviderDefinition(
 )
 
 
+
+_MOCK_VIDEO_PROVIDER_ID = "mock-video"
+_MOCK_VIDEO_PROVIDER = ProviderDefinition(
+    provider_id=_MOCK_VIDEO_PROVIDER_ID,
+    name="Mock Video Provider",
+    version="0.4.0",
+    provider_type="video",
+    state="available",
+    capabilities=(
+        ProviderCapability("mock_video", "Returns deterministic mock video URI. No network."),
+        ProviderCapability("video", "Accepts video prompts (mock only)."),
+    ),
+    requires_api_key=False,
+    supports_dry_run=True,
+    description="Built-in mock video provider. No network, no SDK, no secrets, no video generation.",
+    created_at=_utc_now(),
+    updated_at=_utc_now(),
+)
+
+
+_MOCK_IMAGE_PROVIDER_ID = "mock-image"
+_MOCK_IMAGE_PROVIDER = ProviderDefinition(
+    provider_id=_MOCK_IMAGE_PROVIDER_ID,
+    name="Mock Image Provider",
+    version="0.4.0",
+    provider_type="image",
+    state="available",
+    capabilities=(
+        ProviderCapability("mock_image", "Returns deterministic mock image URI. No network."),
+        ProviderCapability("image", "Accepts image prompts (mock only)."),
+    ),
+    requires_api_key=False,
+    supports_dry_run=True,
+    description="Built-in mock image provider. No network, no SDK, no secrets, no image generation.",
+    created_at=_utc_now(),
+    updated_at=_utc_now(),
+)
+
+
 class ProviderRegistry:
     """In-memory provider registry.
 
     Stores ProviderDefinition records keyed by provider_id.
-    The built-in dry-run provider is always available.
+    The built-in dry-run provider and mock-image provider are always available.
     """
 
     def __init__(self) -> None:
         self._providers: dict[str, ProviderDefinition] = {
             DRY_RUN_PROVIDER_ID: _DRY_RUN_PROVIDER,
+            _MOCK_IMAGE_PROVIDER_ID: _MOCK_IMAGE_PROVIDER,
+            _MOCK_VIDEO_PROVIDER_ID: _MOCK_VIDEO_PROVIDER,
         }
 
     # ------------------------------------------------------------------

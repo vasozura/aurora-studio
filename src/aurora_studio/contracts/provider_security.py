@@ -65,13 +65,57 @@ EXECUTION_GATE_STATUSES: frozenset[str] = frozenset({
     "adapter_not_implemented",
 })
 
-# Execution modes for the gate (TASK-000106)
+# Execution modes for the gate (TASK-000106, extended TASK-000111)
 PROVIDER_EXECUTION_MODES: frozenset[str] = frozenset({
     "dry_run",
     "mock",
     "real_text",
     "blocked_real",
+    # Image modes (TASK-000111)
+    "mock_image",
+    "real_image",
+    "blocked_real_image",
+    # Video modes (TASK-000116)
+    "mock_video",
+    "real_video",
+    "blocked_real_video",
 })
+
+# All prerequisites required before real_image execution may proceed (TASK-000111)
+REAL_IMAGE_PREREQUISITES: tuple[str, ...] = (
+    "provider_registered",
+    "provider_enabled",
+    "real_image_execution_requested",
+    "real_image_execution_allowed",
+    "secret_reference_available",
+    "secret_storage_approved",
+    "prompt_only_request",
+    "no_reference_image_upload",
+    "redaction_enabled",
+    "logging_sanitized",
+    "network_allowed_for_provider",
+    "user_confirmed",
+    "no_pii_in_prompt_confirmed",
+)
+
+# All prerequisites required before real_video execution may proceed (TASK-000116)
+REAL_VIDEO_PREREQUISITES: tuple[str, ...] = (
+    "provider_registered",
+    "provider_enabled",
+    "real_video_execution_requested",
+    "real_video_execution_allowed",
+    "secret_reference_available",
+    "secret_storage_approved",
+    "prompt_only_request",
+    "no_reference_video_upload",
+    "no_reference_image_upload",
+    "redaction_enabled",
+    "logging_sanitized",
+    "network_allowed_for_provider",
+    "user_confirmed",
+    "no_pii_in_prompt_confirmed",
+    "video_safety_review_completed",
+)
 
 # All prerequisites required before real_text execution may proceed (TASK-000106)
 REAL_TEXT_PREREQUISITES: tuple[str, ...] = (

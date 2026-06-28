@@ -220,6 +220,62 @@ def _build_parser() -> argparse.ArgumentParser:
     p_text_ready.add_argument("--provider", default="openai-compatible",
                               help="Provider ID (default: openai-compatible)")
 
+    # image-provider-mock
+    p_img_mock = sub.add_parser(
+        "image-provider-mock",
+        help="Execute image provider in mock mode — no network, no image file.",
+    )
+    p_img_mock.add_argument("--provider", default="mock-image",
+                            help="Provider ID (default: mock-image)")
+    p_img_mock.add_argument("--prompt", default="Test image prompt",
+                            help="Prompt text")
+    p_img_mock.add_argument("--negative", default="",
+                            help="Negative prompt text (optional)")
+    p_img_mock.add_argument("--model", default="",
+                            help="Model ID (optional)")
+
+    # image-provider-readiness
+    p_img_ready = sub.add_parser(
+        "image-provider-readiness",
+        help="Report real image provider prerequisites — never executes.",
+    )
+    p_img_ready.add_argument("--provider", default="mock-image",
+                             help="Provider ID (default: mock-image)")
+    p_img_ready.add_argument("--prompt", default="",
+                             help="Prompt text (optional, for context)")
+
+    # video-provider-mock
+    p_vid_mock = sub.add_parser(
+        "video-provider-mock",
+        help="Execute video provider in mock mode — no network, no video file.",
+    )
+    p_vid_mock.add_argument("--provider", default="mock-video",
+                            help="Provider ID (default: mock-video)")
+    p_vid_mock.add_argument("--prompt", default="Test video prompt",
+                            help="Prompt text")
+    p_vid_mock.add_argument("--negative", default="",
+                            help="Negative prompt text (optional)")
+    p_vid_mock.add_argument("--model", default="",
+                            help="Model ID (optional)")
+
+    # video-provider-readiness
+    p_vid_ready = sub.add_parser(
+        "video-provider-readiness",
+        help="Report real video provider prerequisites — never executes.",
+    )
+    p_vid_ready.add_argument("--provider", default="mock-video",
+                             help="Provider ID (default: mock-video)")
+    p_vid_ready.add_argument("--prompt", default="",
+                             help="Prompt text (optional, for context)")
+
+    # safety-scan
+    p_safety = sub.add_parser(
+        "safety-scan",
+        help="Run v0.4 source and packaging safety scan. Output JSON only.",
+    )
+    p_safety.add_argument("--root", default=".",
+                          help="Repository root path (default: current directory)")
+
     return parser
 
 
@@ -359,6 +415,99 @@ def _cmd_text_provider_readiness(args: "argparse.Namespace") -> None:
     print(json.dumps(output, indent=2))
 
 
+
+def _cmd_image_provider_mock(args: "argparse.Namespace") -> None:
+    """Mock image provider — no network, no secret, no image file."""
+    import json
+    from aurora_studio.ui.actions import UISession
+    provider_id = getattr(args, "provider", "mock-image") or "mock-image"
+    prompt = getattr(args, "prompt", "Test image prompt") or "Test image prompt"
+    negative = getattr(args, "negative", "") or ""
+    model = getattr(args, "model", "") or ""
+    sess = UISession()
+    result = sess.run_mock_image_from_prompt(
+        provider_id, prompt, negative_prompt_text=negative, model=model or None
+    )
+    output: dict = {}
+    if result.payload:
+        output.update(result.payload)
+    output["ok"] = result.ok
+    output["command"] = "image-provider-mock"
+    if not result.ok:
+        output["message"] = result.message
+    print(json.dumps(output, indent=2))
+
+
+def _cmd_image_provider_readiness(args: "argparse.Namespace") -> None:
+    """Image provider readiness — reports prerequisites, never executes."""
+    import json
+    from aurora_studio.ui.actions import UISession
+    provider_id = getattr(args, "provider", "mock-image") or "mock-image"
+    prompt = getattr(args, "prompt", "") or ""
+    sess = UISession()
+    result = sess.evaluate_image_provider_real_readiness(provider_id, prompt_text=prompt)
+    output: dict = {}
+    if result.payload:
+        output.update(result.payload)
+    output["ok"] = result.ok
+    output["command"] = "image-provider-readiness"
+    if not result.ok:
+        output["message"] = result.message
+    print(json.dumps(output, indent=2))
+
+
+
+def _cmd_video_provider_mock(args: "argparse.Namespace") -> None:
+    """Mock video provider — no network, no secret, no video file."""
+    import json
+    from aurora_studio.ui.actions import UISession
+    provider_id = getattr(args, "provider", "mock-video") or "mock-video"
+    prompt = getattr(args, "prompt", "Test video prompt") or "Test video prompt"
+    negative = getattr(args, "negative", "") or ""
+    model = getattr(args, "model", "") or ""
+    sess = UISession()
+    result = sess.run_mock_video_from_prompt(
+        provider_id, prompt, negative_prompt_text=negative, model=model or None
+    )
+    output: dict = {}
+    if result.payload:
+        output.update(result.payload)
+    output["ok"] = result.ok
+    output["command"] = "video-provider-mock"
+    if not result.ok:
+        output["message"] = result.message
+    print(json.dumps(output, indent=2))
+
+
+def _cmd_video_provider_readiness(args: "argparse.Namespace") -> None:
+    """Video provider readiness — reports prerequisites, never executes."""
+    import json
+    from aurora_studio.ui.actions import UISession
+    provider_id = getattr(args, "provider", "mock-video") or "mock-video"
+    prompt = getattr(args, "prompt", "") or ""
+    sess = UISession()
+    result = sess.evaluate_video_provider_real_readiness(provider_id, prompt_text=prompt)
+    output: dict = {}
+    if result.payload:
+        output.update(result.payload)
+    output["ok"] = result.ok
+    output["command"] = "video-provider-readiness"
+    if not result.ok:
+        output["message"] = result.message
+    print(json.dumps(output, indent=2))
+
+
+def _cmd_safety_scan(args: "argparse.Namespace") -> None:
+    """v0.4 source and packaging safety scan. Output JSON only."""
+    import json
+    import os
+    from aurora_studio.modules.safety_scan import run_v0_4_safety_scan
+    root = getattr(args, "root", ".") or "."
+    root = os.path.abspath(root)
+    result = run_v0_4_safety_scan(root)
+    print(json.dumps(result, indent=2))
+
+
 _HANDLERS = {
     "smoke": _cmd_smoke,
     "provider-smoke": _cmd_provider_smoke,
@@ -371,10 +520,16 @@ _HANDLERS = {
     "inspect-bundle": _cmd_inspect_bundle,
     "validate-bundle": _cmd_validate_bundle,
     "rehydrate-bundle": _cmd_rehydrate_bundle,
+    "image-provider-mock": _cmd_image_provider_mock,
+"image-provider-readiness": _cmd_image_provider_readiness,
+    "video-provider-mock": _cmd_video_provider_mock,
+    "video-provider-readiness": _cmd_video_provider_readiness,
+    "safety-scan": _cmd_safety_scan,
 }
 
 
 def main() -> None:
+    import json as _json
     parser = _build_parser()
     args = parser.parse_args()
 
@@ -385,14 +540,14 @@ def main() -> None:
     handler = _HANDLERS.get(args.command)
     if handler is None:
         parser.print_help()
-        sys.exit(0)
+        sys.exit(1)
 
     try:
         handler(args)
-    except ValidationError as exc:
-        _err(str(exc), code=2)
-    except Exception as exc:  # pylint: disable=broad-except
-        _err(f"Unexpected error: {exc}", code=1)
+    except Exception as exc:
+        import json as _j
+        sys.stderr.write(_j.dumps({"ok": False, "error": str(exc)}) + "\n")
+        sys.exit(1)
 
 
 if __name__ == "__main__":

@@ -2385,3 +2385,350 @@ class UISession:
             if k not in {"ephemeral_secret", "api_key", "secret", "token", "authorization"}
         }
         self._text_provider_runs.append(safe)
+
+    # ------------------------------------------------------------------
+    # TASK-000111: Image Provider Execution Gate
+    # ------------------------------------------------------------------
+
+    def evaluate_image_provider_execution_gate(
+        self,
+        provider_id: str,
+        requested_action: str,
+        mode: str = "mock_image",
+        config: dict | None = None,
+    ) -> "UIActionResult":
+        """Evaluate image provider execution gate for the given mode.
+
+        mock_image always allowed. real_image blocked by default.
+        """
+        try:
+            from aurora_studio.modules.provider_execution_gate import ImageProviderExecutionGate
+            gate = ImageProviderExecutionGate()
+            decision = gate.evaluate_execution(
+                provider_id, requested_action, mode=mode, config=config
+            )
+            return _ok(decision.to_dict())
+        except Exception as exc:
+            return _fail(f"Unexpected error: {exc}")
+
+    def list_real_image_provider_prerequisites(self) -> "UIActionResult":
+        """List all prerequisites required for real image provider execution."""
+        try:
+            from aurora_studio.modules.provider_execution_gate import ImageProviderExecutionGate
+            gate = ImageProviderExecutionGate()
+            prereqs = gate.list_real_image_prerequisites()
+            return _ok({"prerequisites": [p.to_dict() for p in prereqs]})
+        except Exception as exc:
+            return _fail(f"Unexpected error: {exc}")
+
+    # ------------------------------------------------------------------
+    # TASK-000113: Mock Image Provider Adapter
+    # ------------------------------------------------------------------
+
+    def execute_image_provider_mock(
+        self,
+        provider_id: str,
+        prompt_text: str,
+        negative_prompt_text: str = "",
+        model: str | None = None,
+        parameters: dict | None = None,
+    ) -> "UIActionResult":
+        """Execute mock image provider. No network, no secret, no image files."""
+        try:
+            from aurora_studio.modules.mock_image_provider_adapter import MockImageProviderAdapter
+            adapter = MockImageProviderAdapter()
+            request = adapter.build_request(
+                prompt_text=prompt_text,
+                provider_id=provider_id,
+                mode="mock_image",
+                negative_prompt_text=negative_prompt_text,
+                model=model or "",
+                parameters=parameters or {},
+            )
+            response = adapter.execute_mock(request)
+            return _ok(response.to_dict())
+        except Exception as exc:
+            return _fail(f"Unexpected error: {exc}")
+
+    def evaluate_image_provider_real_readiness(
+        self,
+        provider_id: str,
+        prompt_text: str = "",
+        model: str | None = None,
+        config: dict | None = None,
+    ) -> "UIActionResult":
+        """Evaluate real image provider readiness. Always blocked in v0.4."""
+        try:
+            from aurora_studio.modules.provider_execution_gate import ImageProviderExecutionGate
+            gate = ImageProviderExecutionGate()
+            decision = gate.evaluate_real_image(provider_id, config=config)
+            prereqs = gate.list_real_image_prerequisites()
+            return _ok({
+                "provider_id": provider_id,
+                "real_image_execution_ready": decision.allowed,
+                "gate_decision": decision.to_dict(),
+                "prerequisites": [p.to_dict() for p in prereqs],
+                "missing_conditions": list(decision.missing_conditions),
+            })
+        except Exception as exc:
+            return _fail(f"Unexpected error: {exc}")
+
+    # ------------------------------------------------------------------
+    # TASK-000114: Image Prompt Export Bridge
+    # ------------------------------------------------------------------
+
+    def _get_image_bridge(self) -> "ImagePromptExportBridge":
+        if not hasattr(self, "_image_bridge"):
+            from aurora_studio.modules.image_prompt_export_bridge import ImagePromptExportBridge
+            self._image_bridge = ImagePromptExportBridge()
+        return self._image_bridge
+
+    def run_mock_image_from_prompt(
+        self,
+        provider_id: str,
+        prompt_text: str,
+        negative_prompt_text: str = "",
+        model: str | None = None,
+        parameters: dict | None = None,
+    ) -> "UIActionResult":
+        """Run mock image from prompt text. No network, no image file, no secret."""
+        try:
+            bridge = self._get_image_bridge()
+            result = bridge.run_mock_image_from_prompt(
+                provider_id, prompt_text,
+                negative_prompt_text=negative_prompt_text,
+                model=model, parameters=parameters,
+            )
+            return _ok(result)
+        except Exception as exc:
+            return _fail(f"Unexpected error: {exc}")
+
+    def run_mock_image_from_export(
+        self,
+        provider_id: str,
+        export_artifact_id: str,
+        model: str | None = None,
+        parameters: dict | None = None,
+    ) -> "UIActionResult":
+        """Run mock image from export artifact. No network, no image file."""
+        try:
+            bridge = self._get_image_bridge()
+            result = bridge.run_mock_image_from_export(
+                provider_id, export_artifact_id, model=model, parameters=parameters,
+            )
+            return _ok(result)
+        except Exception as exc:
+            return _fail(f"Unexpected error: {exc}")
+
+    def run_mock_image_from_template(
+        self,
+        provider_id: str,
+        source_type: str,
+        source_id: str,
+        template_id: str | None = None,
+        profile_id: str | None = None,
+        model: str | None = None,
+        parameters: dict | None = None,
+    ) -> "UIActionResult":
+        """Run mock image from template/profile. No network, no image file."""
+        try:
+            bridge = self._get_image_bridge()
+            result = bridge.run_mock_image_from_template(
+                provider_id, source_type, source_id,
+                template_id=template_id, profile_id=profile_id,
+                model=model, parameters=parameters,
+            )
+            return _ok(result)
+        except Exception as exc:
+            return _fail(f"Unexpected error: {exc}")
+
+    def list_image_provider_runs(
+        self,
+        provider_id: str | None = None,
+        status: str | None = None,
+    ) -> "UIActionResult":
+        """List in-memory image provider runs. Ephemeral. No secrets stored."""
+        try:
+            bridge = self._get_image_bridge()
+            runs = bridge.list_image_provider_runs(provider_id=provider_id, status=status)
+            return _ok({
+                "provider_id": provider_id or "all",
+                "status_filter": status or "all",
+                "total": len(runs),
+                "runs": runs,
+            })
+        except Exception as exc:
+            return _fail(f"Unexpected error: {exc}")
+
+    # ------------------------------------------------------------------
+    # TASK-000116: Video Provider Safety Boundary
+    # ------------------------------------------------------------------
+
+    def evaluate_video_provider_execution_gate(
+        self,
+        provider_id: str,
+        requested_action: str,
+        mode: str = "mock_video",
+        config: dict | None = None,
+    ) -> "UIActionResult":
+        """Evaluate video provider execution gate. Real video always blocked in v0.4."""
+        try:
+            from aurora_studio.modules.provider_execution_gate import VideoProviderExecutionGate
+            gate = VideoProviderExecutionGate()
+            decision = gate.evaluate_execution(provider_id, requested_action, mode=mode, config=config)
+            return _ok(decision.to_dict())
+        except Exception as exc:
+            return _fail(f"Unexpected error: {exc}")
+
+    def list_real_video_provider_prerequisites(self) -> "UIActionResult":
+        """List prerequisites for real video execution. All unsatisfied in v0.4."""
+        try:
+            from aurora_studio.modules.provider_execution_gate import VideoProviderExecutionGate
+            gate = VideoProviderExecutionGate()
+            prereqs = gate.list_real_video_prerequisites()
+            return _ok({
+                "prerequisites": [p.to_dict() for p in prereqs],
+                "total": len(prereqs),
+                "all_satisfied": False,
+            })
+        except Exception as exc:
+            return _fail(f"Unexpected error: {exc}")
+
+    # ------------------------------------------------------------------
+    # TASK-000118: Mock Video Provider Adapter
+    # ------------------------------------------------------------------
+
+    def execute_video_provider_mock(
+        self,
+        provider_id: str,
+        prompt_text: str,
+        negative_prompt_text: str = "",
+        model: str | None = None,
+        parameters: dict | None = None,
+    ) -> "UIActionResult":
+        """Execute mock video provider. No network, no secret, no video file."""
+        try:
+            from aurora_studio.modules.mock_video_provider_adapter import MockVideoProviderAdapter
+            adapter = MockVideoProviderAdapter()
+            request = adapter.build_request(
+                prompt_text=prompt_text,
+                provider_id=provider_id,
+                mode="mock_video",
+                negative_prompt_text=negative_prompt_text,
+                model=model or "",
+                parameters=parameters or {},
+            )
+            response = adapter.execute_mock(request)
+            return _ok(response.to_dict())
+        except Exception as exc:
+            return _fail(f"Unexpected error: {exc}")
+
+    def evaluate_video_provider_real_readiness(
+        self,
+        provider_id: str,
+        prompt_text: str = "",
+        model: str | None = None,
+        config: dict | None = None,
+    ) -> "UIActionResult":
+        """Evaluate real video provider readiness. Always blocked in v0.4."""
+        try:
+            from aurora_studio.modules.provider_execution_gate import VideoProviderExecutionGate
+            gate = VideoProviderExecutionGate()
+            decision = gate.evaluate_real_video(provider_id, config=config)
+            prereqs = gate.list_real_video_prerequisites()
+            return _ok({
+                "provider_id": provider_id,
+                "real_video_execution_ready": decision.allowed,
+                "gate_decision": decision.to_dict(),
+                "prerequisites": [p.to_dict() for p in prereqs],
+                "missing_conditions": list(decision.missing_conditions),
+            })
+        except Exception as exc:
+            return _fail(f"Unexpected error: {exc}")
+
+    # ------------------------------------------------------------------
+    # TASK-000119: Video Prompt Export Bridge
+    # ------------------------------------------------------------------
+
+    def _get_video_bridge(self) -> "VideoPromptExportBridge":
+        if not hasattr(self, "_video_bridge"):
+            from aurora_studio.modules.video_prompt_export_bridge import VideoPromptExportBridge
+            self._video_bridge = VideoPromptExportBridge()
+        return self._video_bridge
+
+    def run_mock_video_from_prompt(
+        self,
+        provider_id: str,
+        prompt_text: str,
+        negative_prompt_text: str = "",
+        model: str | None = None,
+        parameters: dict | None = None,
+    ) -> "UIActionResult":
+        """Run mock video from prompt text. No network, no video file, no secret."""
+        try:
+            bridge = self._get_video_bridge()
+            result = bridge.run_mock_video_from_prompt(
+                provider_id, prompt_text,
+                negative_prompt_text=negative_prompt_text,
+                model=model, parameters=parameters,
+            )
+            return _ok(result)
+        except Exception as exc:
+            return _fail(f"Unexpected error: {exc}")
+
+    def run_mock_video_from_export(
+        self,
+        provider_id: str,
+        export_artifact_id: str,
+        model: str | None = None,
+        parameters: dict | None = None,
+    ) -> "UIActionResult":
+        """Run mock video from export artifact. No network, no video file."""
+        try:
+            bridge = self._get_video_bridge()
+            result = bridge.run_mock_video_from_export(
+                provider_id, export_artifact_id, model=model, parameters=parameters,
+            )
+            return _ok(result)
+        except Exception as exc:
+            return _fail(f"Unexpected error: {exc}")
+
+    def run_mock_video_from_template(
+        self,
+        provider_id: str,
+        source_type: str,
+        source_id: str,
+        template_id: str | None = None,
+        profile_id: str | None = None,
+        model: str | None = None,
+        parameters: dict | None = None,
+    ) -> "UIActionResult":
+        """Run mock video from template/profile. No network, no video file."""
+        try:
+            bridge = self._get_video_bridge()
+            result = bridge.run_mock_video_from_template(
+                provider_id, source_type, source_id,
+                template_id=template_id, profile_id=profile_id,
+                model=model, parameters=parameters,
+            )
+            return _ok(result)
+        except Exception as exc:
+            return _fail(f"Unexpected error: {exc}")
+
+    def list_video_provider_runs(
+        self,
+        provider_id: str | None = None,
+        status: str | None = None,
+    ) -> "UIActionResult":
+        """List in-memory video provider runs. Ephemeral. No secrets stored."""
+        try:
+            bridge = self._get_video_bridge()
+            runs = bridge.list_video_provider_runs(provider_id=provider_id, status=status)
+            return _ok({
+                "provider_id": provider_id or "all",
+                "status_filter": status or "all",
+                "total": len(runs),
+                "runs": runs,
+            })
+        except Exception as exc:
+            return _fail(f"Unexpected error: {exc}")

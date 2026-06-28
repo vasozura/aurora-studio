@@ -177,3 +177,206 @@ Confirmations:
 - **Total tests**: 2750 (skipped=15)
 - **New tests this pack**: 152
 - Real text execution gate extended with modes (dry_run/mock/real_text/blocked_real) and 11 prerequisites. TextProviderRequest/Response frozen contracts with ephemeral secret ref (never stored). TextProviderAdapter base class. OpenAICompatibleTextAdapter (mock + gated real via urllib stdlib). UISession: mock, blocked-real, ephemeral-real (confirm=True required), readiness evaluation, in-memory run history. CLI: text-provider-mock, text-provider-readiness. Safety docs: QA checklist, security review, user warning. Source scan verified clean.
+
+## TASK-000111: Image Provider Safety Boundary Pack
+- **Status**: COMPLETE
+- **Files created**: `docs/v0_4/IMAGE_PROVIDER_SAFETY_BOUNDARY.md`, `docs/v0_4/IMAGE_PROVIDER_ESCALATION_RULES.md`, `tests/test_image_provider_safety_boundary.py`
+- **Files changed**: `src/aurora_studio/contracts/provider_security.py`, `src/aurora_studio/modules/provider_execution_gate.py`, `src/aurora_studio/ui/actions.py`
+- **Tests added**: 30 new (2780 total, skipped=15)
+- **Test command**: `PYTHONPYCACHEPREFIX=/tmp/pycache PYTHONPATH=src python -m unittest`
+- **Result**: PASS
+- **Notes**: Added REAL_IMAGE_PREREQUISITES (13 prerequisites) and mock_image/real_image/blocked_real_image to PROVIDER_EXECUTION_MODES. Added ImageProviderExecutionGate class with evaluate_mock_image(), evaluate_real_image(), block_real_image(), list_real_image_prerequisites(). UISession: evaluate_image_provider_execution_gate(), list_real_image_provider_prerequisites(). Safety docs state all 10 required boundary commitments. Escalation rules define real image execution and go/no-go criteria.
+
+## TASK-000112: Image Provider Request/Response Contract Pack
+- **Status**: COMPLETE
+- **Files created**: `src/aurora_studio/contracts/image_provider.py`, `src/aurora_studio/modules/image_provider_adapter.py`, `tests/test_image_provider_contracts.py`
+- **Tests added**: 36 new (2816 total, skipped=15)
+- **Test command**: `PYTHONPYCACHEPREFIX=/tmp/pycache PYTHONPATH=src python -m unittest`
+- **Result**: PASS
+- **Notes**: ImageProviderRequest (frozen): request_id, provider_id, mode, prompt_text, negative_prompt_text, model, parameters (tuple of pairs), source/profile/template fields. No image bytes, no base64, no secrets. to_json() always safe. ImageProviderResponse: status, image_uri (mock:// scheme), raw_response_preview (truncated). FORBIDDEN_PARAMETER_KEYS enforced in validation. ImageProviderAdapter base: execute_mock(), execute_real_image() (blocked), execute() routes by mode, sanitize_response_payload(), build_request().
+
+## TASK-000113: Mock Image Provider Adapter Pack
+- **Status**: COMPLETE
+- **Files created**: `src/aurora_studio/modules/mock_image_provider_adapter.py`, `tests/test_mock_image_provider_adapter.py`
+- **Files changed**: `src/aurora_studio/modules/provider_registry.py`, `src/aurora_studio/ui/actions.py`
+- **Tests added**: 29 new (2845 total, skipped=15)
+- **Test command**: `PYTHONPYCACHEPREFIX=/tmp/pycache PYTHONPATH=src python -m unittest`
+- **Result**: PASS
+- **Notes**: MockImageProviderAdapter: execute_mock() returns deterministic mock://image/<request_id> URI, no network, no image files, no secret. Real execution always blocked. Registered mock-image provider in ProviderRegistry (provider_type="image", requires_api_key=False). UISession: execute_image_provider_mock(), evaluate_image_provider_real_readiness() (always blocked).
+
+## TASK-000114: Image Prompt Export Bridge UI/CLI Pack
+- **Status**: COMPLETE
+- **Files created**: `src/aurora_studio/modules/image_prompt_export_bridge.py`, `tests/test_image_prompt_export_bridge_ui_cli.py`
+- **Files changed**: `src/aurora_studio/ui/actions.py`, `src/aurora_studio/cli/main.py`
+- **Tests added**: 35 new (2880 total, skipped=15)
+- **Test command**: `PYTHONPYCACHEPREFIX=/tmp/pycache PYTHONPATH=src python -m unittest`
+- **Result**: PASS
+- **Notes**: ImagePromptExportBridge: run_mock_image_from_prompt/export/template, list_image_provider_runs (in-memory, ephemeral). UISession: all four bridge methods. CLI: image-provider-mock, image-provider-readiness subcommands. No network, no image files, no secrets.
+
+## TASK-000115: Image Provider Safety QA Pack
+- **Status**: COMPLETE
+- **Files created**: `docs/v0_4/IMAGE_PROVIDER_ADAPTER_QA_CHECKLIST.md`, `docs/v0_4/IMAGE_PROVIDER_SECURITY_REVIEW.md`, `docs/v0_4/REAL_IMAGE_PROVIDER_USER_WARNING.md`, `tests/test_image_provider_safety_qa_pack.py`
+- **Tests added**: 37 new (2917 total, skipped=15)
+- **Test command**: `PYTHONPYCACHEPREFIX=/tmp/pycache PYTHONPATH=src python -m unittest`
+- **Result**: PASS
+- **Notes**: Source scan confirms no PIL/cv2/moviepy/requests/httpx/aiohttp in src. Real image execution gate always blocked (13 missing prerequisites). All CLI smoke commands pass. image-provider-mock: status=mock, network_call=False. image-provider-readiness: real_image_execution_ready=False.
+
+## TASK-000111–115 Pack Complete
+- **Total tests**: 2917 (skipped=15)
+- **Image mock execution**: mock://image/<uuid>, deterministic, no network, no image file
+- **Real image execution**: blocked (hardcoded, 13 prerequisites unmet)
+- **Security docs**: 5 docs in docs/v0_4/
+- **CLI**: image-provider-mock, image-provider-readiness
+- **UISession**: execute_image_provider_mock, evaluate_image_provider_real_readiness, run_mock_image_from_prompt/export/template, list_image_provider_runs
+
+## TASK-000116: Video Provider Safety Boundary Pack
+- **Status**: COMPLETE
+- **Files created**: `docs/v0_4/VIDEO_PROVIDER_SAFETY_BOUNDARY.md`, `docs/v0_4/VIDEO_PROVIDER_ESCALATION_RULES.md`, `tests/test_video_provider_safety_boundary.py`
+- **Files changed**: `src/aurora_studio/contracts/provider_security.py` (added mock_video/real_video/blocked_real_video modes, REAL_VIDEO_PREREQUISITES), `src/aurora_studio/modules/provider_execution_gate.py` (added VideoProviderExecutionGate), `src/aurora_studio/ui/actions.py` (added evaluate_video_provider_execution_gate, list_real_video_provider_prerequisites)
+- **Tests added**: 35 new (2952 total, skipped=15)
+- **Test command**: `PYTHONPYCACHEPREFIX=/tmp/pycache PYTHONPATH=src python -m unittest`
+- **Result**: PASS
+- **Notes**: VideoProviderExecutionGate: evaluate_mock_video() always allowed, evaluate_real_video() always blocked (15 prerequisites, all unsatisfied). JSON-serializable decisions. No network in gate. UISession methods wired.
+
+## TASK-000117: Video Provider Request/Response Contract Pack
+- **Status**: COMPLETE
+- **Files created**: `src/aurora_studio/contracts/video_provider.py`, `src/aurora_studio/modules/video_provider_adapter.py`, `tests/test_video_provider_contracts.py`
+- **Tests added**: 34 new (2986 total, skipped=15)
+- **Test command**: `PYTHONPYCACHEPREFIX=/tmp/pycache PYTHONPATH=src python -m unittest`
+- **Result**: PASS
+- **Notes**: VideoProviderRequest (frozen): no video/audio bytes, no base64, no secrets. FORBIDDEN_PARAMETER_KEYS covers 16 keys. VideoProviderResponse: video_uri (mock://video/), job_id, raw_response_preview truncated. VideoProviderAdapter base: execute_mock() returns mock, execute_real_video() returns blocked. validate_video_provider_request/parameters helpers.
+
+## TASK-000118: Mock Video Provider Adapter Pack
+- **Status**: COMPLETE
+- **Files created**: `src/aurora_studio/modules/mock_video_provider_adapter.py`, `tests/test_mock_video_provider_adapter.py`
+- **Files changed**: `src/aurora_studio/modules/provider_registry.py`, `src/aurora_studio/ui/actions.py`
+- **Tests added**: 32 new (3018 total, skipped=15)
+- **Test command**: `PYTHONPYCACHEPREFIX=/tmp/pycache PYTHONPATH=src python -m unittest`
+- **Result**: PASS
+- **Notes**: MockVideoProviderAdapter: execute_mock() → mock://video/<request_id>, mock-job-<id>, no network, no video file. Real execution blocked. Registered mock-video in ProviderRegistry (provider_type="video", requires_api_key=False). UISession: execute_video_provider_mock(), evaluate_video_provider_real_readiness() (always blocked, 15 prerequisites).
+
+## TASK-000119: Video Prompt Export Bridge UI/CLI Pack
+- **Status**: COMPLETE
+- **Files created**: `src/aurora_studio/modules/video_prompt_export_bridge.py`, `tests/test_video_prompt_export_bridge_ui_cli.py`
+- **Files changed**: `src/aurora_studio/ui/actions.py`, `src/aurora_studio/cli/main.py`
+- **Tests added**: 36 new (3054 total, skipped=15)
+- **Test command**: `PYTHONPYCACHEPREFIX=/tmp/pycache PYTHONPATH=src python -m unittest`
+- **Result**: PASS
+- **Notes**: VideoPromptExportBridge: run_mock_video_from_prompt/export/template, list_video_provider_runs (in-memory, ephemeral). UISession: all four bridge methods. CLI: video-provider-mock, video-provider-readiness subcommands. No network, no video files, no secrets.
+
+## TASK-000120: Video Provider Safety QA Pack
+- **Status**: COMPLETE
+- **Files created**: `docs/v0_4/VIDEO_PROVIDER_ADAPTER_QA_CHECKLIST.md`, `docs/v0_4/VIDEO_PROVIDER_SECURITY_REVIEW.md`, `docs/v0_4/REAL_VIDEO_PROVIDER_USER_WARNING.md`, `tests/test_video_provider_safety_qa_pack.py`
+- **Tests added**: 48 new (3102 total, skipped=15)
+- **Test command**: `PYTHONPYCACHEPREFIX=/tmp/pycache PYTHONPATH=src python -m unittest`
+- **Result**: PASS
+- **Notes**: Source scan: no PIL/cv2/moviepy/requests/httpx/aiohttp in src. Video-specific modules: no import subprocess/ffmpeg. Real video gate always blocked (15 prerequisites). All CLI smoke commands pass. video-provider-mock: status=mock, network_call=False. video-provider-readiness: real_video_execution_ready=False, 15 missing conditions.
+
+## TASK-000116–120 Pack Complete
+- **Total tests**: 3102 (skipped=15)
+- **Video mock execution**: mock://video/<uuid>, deterministic, no network, no video file, no ffmpeg
+- **Real video execution**: blocked (hardcoded, 15 prerequisites unmet)
+- **Security docs**: 5 docs in docs/v0_4/ (VIDEO_PROVIDER_*)
+- **CLI**: video-provider-mock, video-provider-readiness
+- **UISession**: execute_video_provider_mock, evaluate_video_provider_real_readiness, run_mock_video_from_prompt/export/template, list_video_provider_runs, evaluate_video_provider_execution_gate, list_real_video_provider_prerequisites
+- **Final validation**: headless-smoke OK, CLI smoke OK, validate-bundle OK, rehydrate-bundle OK, provider-smoke OK, video-provider-mock OK, video-provider-readiness OK
+
+---
+
+## TASK-000121 — v0.4 Provider Execution Health Audit
+
+**Status**: DONE
+**Date**: 2026-06-28
+
+**Files created**:
+- `docs/qa/V0_4_PROVIDER_EXECUTION_HEALTH_AUDIT_REPORT.md`
+- `tests/test_v0_4_provider_execution_health_audit.py`
+
+**Commands run**: python -m unittest (3128 pass, 15 skipped), headless-smoke PASS, cli-smoke PASS, create-demo PASS, validate-bundle PASS, rehydrate-bundle PASS, provider-smoke PASS, provider-test PASS, text/image/video provider-mock/readiness all PASS.
+
+**Test result**: 3128 tests, 15 skipped, 0 failures.
+
+**Safety confirmation**: No provider SDK added. No real API keys stored. No secrets in artifacts. Text/image/video real execution blocked by default. No plugin execution, database, media decoding, or background workers.
+
+---
+
+## TASK-000122 — Secret / Source Safety Scan
+
+**Status**: DONE
+**Date**: 2026-06-28
+
+**Files created**:
+- `src/aurora_studio/modules/safety_scan.py`
+- `docs/v0_4/SECRET_SOURCE_SAFETY_SCAN.md`
+- `tests/test_secret_source_safety_scan.py`
+
+**Files modified**:
+- `src/aurora_studio/cli/main.py` — added `safety-scan` subcommand and restored `main()` error handling
+
+**Test result**: 3166 tests, 15 skipped, 0 failures.
+
+**Safety scan result**: overall_status=PASS. No forbidden imports, no forbidden network usage, no forbidden media usage in source tree.
+
+**CLI**: `python -m aurora_studio.cli safety-scan --root .` → `{"overall_status": "PASS", ...}`
+
+---
+
+## TASK-000123 — Provider Workflow Regression QA
+
+**Status**: DONE
+**Date**: 2026-06-28
+
+**Files created**:
+- `docs/qa/V0_4_PROVIDER_WORKFLOW_REGRESSION_PLAN.md`
+- `docs/qa/V0_4_PROVIDER_WORKFLOW_MANUAL_QA_CHECKLIST.md`
+- `docs/qa/V0_4_PROVIDER_WORKFLOW_EVIDENCE_TEMPLATE.md`
+- `tests/test_v0_4_provider_workflow_regression_qa.py`
+
+**Test result**: 3229 tests, 15 skipped, 0 failures.
+
+---
+
+## TASK-000124 — v0.4 Packaging / Portable Secret Safety
+
+**Status**: DONE
+**Date**: 2026-06-28
+
+**Files created**:
+- `docs/packaging/V0_4_PACKAGING_SECRET_SAFETY.md`
+- `docs/packaging/V0_4_PORTABLE_PROVIDER_BOUNDARY.md`
+- `scripts/smoke_v0_4_portable_secret_safety.ps1`
+- `scripts/smoke_v0_4_portable_secret_safety.bat`
+- `tests/test_v0_4_packaging_secret_safety.py`
+
+**Test result**: 3282 tests, 15 skipped, 0 failures.
+
+---
+
+## TASK-000125 — v0.4 RC / Go-No-Go Release Decision
+
+**Status**: DONE
+**Date**: 2026-06-28
+
+**Files created**:
+- `docs/qa/V0_4_RELEASE_CANDIDATE_QA_PLAN.md`
+- `docs/qa/V0_4_REGRESSION_CHECKLIST.md`
+- `docs/qa/V0_4_GO_NO_GO_TEMPLATE.md`
+- `docs/qa/V0_4_FINAL_RELEASE_DECISION_REPORT.md`
+- `release-notes/AuroraStudio-v0.4.0-rc1.md`
+- `release-notes/AuroraStudio-v0.4.0.md`
+- `scripts/promote_v0_4_rc_to_final.ps1`
+- `scripts/promote_v0_4_rc_to_final.bat`
+- `tests/test_v0_4_rc_go_no_go_release.py`
+
+**Test result**: 3374 tests, 15 skipped, 0 failures.
+
+**Final validation**: All commands PASS — headless-smoke, cli-smoke, validate-bundle, rehydrate-bundle, provider-smoke, provider-test, text/image/video provider-mock/readiness, safety-scan.
+
+**Decision**: PENDING (awaiting reviewer go/no-go).
+**Promotion scripts**: Block PENDING and NO-GO. Require GO or GO WITH KNOWN LIMITATIONS.
+
+---
+
+## TASK-000121–125 Pack Complete
+
+All 5 subtasks DONE. 3374 tests pass (15 skipped). Final decision remains PENDING per spec.
